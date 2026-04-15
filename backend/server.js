@@ -257,6 +257,56 @@ app.post("/api/intelligence/feedback", async (req, res) => {
   }
 });
 
+// ── Category Agent proxy ───────────────────────────────────────────────────────
+
+const AGENT_BASE = "https://87-99-154-201.nip.io/agent-api/api";
+
+// GET /api/weeks — week list for AgentPanel / RecommendationsPanel
+app.get("/api/weeks", async (req, res) => {
+  try {
+    const r = await fetch(`${AGENT_BASE}/weeks`);
+    res.json(await r.json());
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// GET /api/agent/run?module=X&week_id=Y — SSE stream, proxied as SSE
+app.get("/api/agent/run", async (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  const { module, week_id } = req.query;
+  try {
+    const upstream = await fetch(
+      `${AGENT_BASE}/agent/run?module=${module}&week_id=${week_id}`
+    );
+    // Stream the SSE lines straight through
+    const reader = upstream.body.getReader();
+    const decoder = new TextDecoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      res.write(decoder.decode(value, { stream: true }));
+    }
+    res.end();
+  } catch (err) {
+    res.write(`data: ✗ Proxy error: ${err.message}\n\n`);
+    res.end();
+  }
+});
+
+// GET /api/recommendations?week_id=X
+app.get("/api/recommendations", async (req, res) => {
+  try {
+    const { week_id } = req.query;
+    const r = await fetch(`${AGENT_BASE}/recommendations?week_id=${week_id}`);
+    res.json(await r.json());
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
 // ── Start ──────────────────────────────────────────────────────────────────────
 
 const PORT = process.env.PORT || 3001;
