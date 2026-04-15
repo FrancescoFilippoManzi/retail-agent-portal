@@ -1,4 +1,21 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Component } from "react";
+
+class ErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(e) { return { error: e }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 24, background: "#1a0000", color: "#ff6b6b", fontFamily: "monospace", fontSize: 13, whiteSpace: "pre-wrap" }}>
+          <strong>CategoryIntelligence crashed:</strong>{"\n\n"}
+          {this.state.error.message}{"\n\n"}
+          {this.state.error.stack}
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import LoginPage from "./components/LoginPage.jsx";
 import { getState, advanceWeek, resetSim } from "./api.js";
 import KPIBar from "./components/KPIBar.jsx";
@@ -11,6 +28,7 @@ import RunModal from "./components/RunModal.jsx";
 import RunStrategySidebar from "./components/RunStrategySidebar.jsx";
 import { loadBrief } from "./components/CategoryBrief.jsx";
 import { getSeason } from "./season.js";
+import CategoryIntelligence from "./components/CategoryIntelligence.jsx";
 
 const s = {
   app: { display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" },
@@ -79,11 +97,12 @@ export default function App() {
     { id: "brief",   label: "Category Brief" },
     { id: "market",  label: "Market Grid" },
     { id: "actions", label: "Kroger Decisions" },
-    { id: "history", label: "Performance Report" },
+    { id: "history",      label: "Performance Report" },
+    { id: "intelligence", label: "Category Intelligence" },
   ];
 
   // History tab doesn't show Circe panel (full width report)
-  const showCirce = tab !== "history" && tab !== "brief";
+  const showCirce = tab !== "history" && tab !== "brief" && tab !== "intelligence";
 
   return (
     <div style={s.app}>
@@ -125,7 +144,7 @@ export default function App() {
       </div>
 
       <div style={s.body}>
-        <div style={{ ...s.left, ...(tab === "history" ? { maxWidth: "100%" } : {}) }}>
+        <div style={{ ...s.left, ...((tab === "history" || tab === "intelligence") ? { maxWidth: "100%" } : {}), ...(tab === "intelligence" ? { overflowY: "hidden" } : {}) }}>
 
           {tab === "brief" && (
             <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
@@ -162,6 +181,8 @@ export default function App() {
               brief={brief}
             />
           )}
+
+          {tab === "intelligence" && <ErrorBoundary><CategoryIntelligence /></ErrorBoundary>}
         </div>
 
         {/* Circe panel — hidden on brief and history tabs */}

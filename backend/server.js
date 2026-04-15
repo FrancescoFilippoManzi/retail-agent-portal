@@ -4,6 +4,7 @@ import cors from "cors";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import Anthropic from "@anthropic-ai/sdk";
 import { buildInitialState, advanceWeek, buildCirceContext } from "./simulation.js";
 import { getCirceRecommendation, getCirceActions } from "./circe.js";
 import { loadGuardrails, saveGuardrails, enforceGuardrails, DEFAULT_GUARDRAILS } from "./guardrails.js";
@@ -176,6 +177,85 @@ app.post("/api/reset", (req, res) => {
 
 // GET /api/health
 app.get("/api/health", (req, res) => res.json({ status: "ok", week: loadState().week }));
+
+// ── Category Intelligence proxy ────────────────────────────────────────────────
+
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const INTEL_BASE = "https://87-99-154-201.nip.io/api";
+
+// POST /api/intelligence/chat  — streams Anthropic SSE back to the browser
+app.post("/api/intelligence/chat", async (req, res) => {
+  const { messages, system } = req.body;
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  try {
+    const stream = await anthropic.messages.stream({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1000,
+      system,
+      messages,
+    });
+    for await (const chunk of stream) {
+      if (chunk.type === "content_block_delta" && chunk.delta?.type === "text_delta") {
+        res.write(`data: ${JSON.stringify({ type: "content_block_delta", delta: { text: chunk.delta.text } })}\n\n`);
+      }
+    }
+    res.write("data: [DONE]\n\n");
+    res.end();
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+    res.end();
+  }
+});
+
+// GET /api/intelligence/daily
+app.get("/api/intelligence/daily", async (req, res) => {
+  try {
+    const r = await fetch(`${INTEL_BASE}/daily/kroger`);
+    res.json(await r.json());
+  } catch (err) {
+    res.status(502).json({ detail: err.message });
+  }
+});
+
+// GET /api/intelligence/topic/:topic
+app.get("/api/intelligence/topic/:topic", async (req, res) => {
+  try {
+    const r = await fetch(`${INTEL_BASE}/topic/kroger/${req.params.topic}`);
+    res.json(await r.json());
+  } catch (err) {
+    res.status(502).json({ detail: err.message });
+  }
+});
+
+// POST /api/intelligence/query
+app.post("/api/intelligence/query", async (req, res) => {
+  try {
+    const r = await fetch(`${INTEL_BASE}/query`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...req.body, tenant_id: "kroger" }),
+    });
+    res.json(await r.json());
+  } catch (err) {
+    res.status(502).json({ detail: err.message });
+  }
+});
+
+// POST /api/intelligence/feedback
+app.post("/api/intelligence/feedback", async (req, res) => {
+  try {
+    const r = await fetch(`${INTEL_BASE}/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...req.body, tenant_id: "kroger" }),
+    });
+    res.json(await r.json());
+  } catch (err) {
+    res.status(502).json({ detail: err.message });
+  }
+});
 
 // ── Start ──────────────────────────────────────────────────────────────────────
 
