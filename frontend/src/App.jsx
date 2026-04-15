@@ -29,6 +29,11 @@ import RunStrategySidebar from "./components/RunStrategySidebar.jsx";
 import { loadBrief } from "./components/CategoryBrief.jsx";
 import { getSeason } from "./season.js";
 import CategoryIntelligence from "./components/CategoryIntelligence.jsx";
+import AgentPanel from "./components/AgentPanel.jsx";
+import RecommendationsPanel from "./components/RecommendationsPanel.jsx";
+import AgentOverview from "./components/AgentOverview.jsx";
+import CategoryResetPanel from "./components/CategoryResetPanel.jsx";
+import CIrceLogo from "./components/CIrceLogo.jsx";
 
 const s = {
   app: { display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" },
@@ -98,11 +103,16 @@ export default function App() {
     { id: "market",  label: "Market Grid" },
     { id: "actions", label: "Kroger Decisions" },
     { id: "history",      label: "Performance Report" },
-    { id: "intelligence", label: "Category Intelligence" },
+    { id: "intelligence",    label: "Category Intelligence" },
+    { id: "agents",          label: "Agents" },
+    { id: "recommendations", label: "Recommendations" },
+    { id: "howItWorks",      label: "How It Works" },
+    { id: "categoryReset",   label: "Category Reset" },
   ];
 
   // History tab doesn't show Circe panel (full width report)
-  const showCirce = tab !== "history" && tab !== "brief" && tab !== "intelligence";
+  const FULL_WIDTH_TABS = new Set(["history", "brief", "intelligence", "agents", "recommendations", "howItWorks", "categoryReset"]);
+  const showCirce = !FULL_WIDTH_TABS.has(tab);
 
   return (
     <div style={s.app}>
@@ -113,7 +123,7 @@ export default function App() {
       {/* Top bar */}
       <div style={s.topBar}>
         <div style={{ display: "flex", alignItems: "center" }}>
-          <span style={s.logo}>CIRCE</span>
+          <CIrceLogo width={72} color="#e8a020" />
           <span style={s.logoSub}>FY 2026 Category Simulation · {state.marketName} · Paper Goods</span>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -144,7 +154,7 @@ export default function App() {
       </div>
 
       <div style={s.body}>
-        <div style={{ ...s.left, ...((tab === "history" || tab === "intelligence") ? { maxWidth: "100%" } : {}), ...(tab === "intelligence" ? { overflowY: "hidden" } : {}) }}>
+        <div style={{ ...s.left, ...(FULL_WIDTH_TABS.has(tab) ? { maxWidth: "100%" } : {}), ...(tab === "intelligence" ? { overflowY: "hidden" } : {}) }}>
 
           {tab === "brief" && (
             <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
@@ -183,6 +193,11 @@ export default function App() {
           )}
 
           {tab === "intelligence" && <ErrorBoundary><CategoryIntelligence /></ErrorBoundary>}
+
+          {tab === "agents"          && <AgentPanel />}
+          {tab === "recommendations" && <RecommendationsPanel />}
+          {tab === "howItWorks"      && <AgentOverview />}
+          {tab === "categoryReset"   && <CategoryResetPanel />}
         </div>
 
         {/* Circe panel — hidden on brief and history tabs */}
