@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, BarChart, Bar, Legend,
@@ -573,21 +573,10 @@ When answering:
 async function askClaude(messages, onChunk, context) {
   const system = buildSystemPrompt(context);
 
-  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+  const resp = await fetch(`${API_BASE}/chat`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": context.apiKey || "",
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-calls": "true",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1000,
-      system,
-      stream: true,
-      messages,
-    }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages, system }),
   });
 
   if (!resp.ok) {
@@ -662,7 +651,7 @@ function ChatMessage({ msg }) {
   );
 }
 
-function ChatPanel({ context, apiKey }) {
+function ChatPanel({ context }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -695,7 +684,7 @@ function ChatPanel({ context, apiKey }) {
             return updated;
           });
         },
-        { ...context, apiKey }
+        context
       );
       setMessages((prev) => {
         const updated = [...prev];
@@ -931,7 +920,6 @@ export default function PricingPromoAgent() {
   const [search, setSearch] = useState("");
   const [activeSegment, setActiveSegment] = useState(null);
   const [showObjectiveModal, setShowObjectiveModal] = useState(false);
-  const [apiKey, setApiKey] = useState("");
 
   async function loadData() {
     setLoading(true);
@@ -977,7 +965,6 @@ export default function PricingPromoAgent() {
     objectives,
     segments,
     topRecs: recommendations.slice(0, 5),
-    apiKey,
   };
 
   return (
@@ -1021,21 +1008,6 @@ export default function PricingPromoAgent() {
                 ⚙
               </button>
             </div>
-          </div>
-
-          {/* API Key input */}
-          <div style={{ marginTop: 6, display: "flex", gap: 6, alignItems: "center" }}>
-            <span style={{ fontSize: "0.58rem", color: TEXT }}>API Key:</span>
-            <input
-              type="password"
-              placeholder="sk-ant-… (for chat)"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              style={{
-                flex: 1, padding: "2px 6px", background: BG,
-                border: `1px solid ${BORDER}`, color: BRIGHT, borderRadius: 4, fontSize: "0.6rem",
-              }}
-            />
           </div>
 
           {/* Summary stats */}
@@ -1129,7 +1101,7 @@ export default function PricingPromoAgent() {
 
       {/* ─── RIGHT PANEL ─── */}
       <div style={{ flex: "0 0 40%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <ChatPanel context={chatContext} apiKey={apiKey} />
+        <ChatPanel context={chatContext} />
       </div>
 
       {/* Objective Modal */}
