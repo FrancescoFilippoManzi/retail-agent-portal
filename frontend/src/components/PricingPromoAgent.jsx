@@ -4,7 +4,13 @@ import {
   Tooltip, ResponsiveContainer, BarChart, Bar, Legend,
 } from "recharts";
 
-const API_BASE = "http://localhost:8003/api";
+const IS_LOCAL = typeof window !== "undefined" && window.location.hostname === "localhost";
+const API_BASE = IS_LOCAL
+  ? "http://localhost:8003/api"
+  : "https://87-99-154-201.nip.io/api";
+const CHAT_URL = IS_LOCAL
+  ? "http://localhost:8003/api/chat"
+  : "https://87-99-154-201.nip.io/api/chat";
 const BG = "#060d1a";
 const PANEL = "#09131f";
 const BORDER = "#0f2540";
@@ -573,7 +579,7 @@ When answering:
 async function askClaude(messages, onChunk, context) {
   const system = buildSystemPrompt(context);
 
-  const resp = await fetch(`${API_BASE}/chat`, {
+  const resp = await fetch(CHAT_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ messages, system }),
