@@ -653,9 +653,71 @@ const SUGG_ADMIN = [
   "Show PL share trend for all retailers",
 ];
 
+// ── ScorecardPanel ────────────────────────────────────────────────────────────
+function ScorecardPanel({ dailyData, topicData, retailer, category }) {
+  const ACCENT = "#38bdf8"; const GREEN = "#34d399"; const GOLD = "#fbbf24";
+  const PURPLE = "#a78bfa"; const WARN = "#f87171";
+  const PANEL = "#09131f"; const BORDER = "#0f2540"; const TEXT = "#6b8aaa";
+
+  const d = dailyData || {};
+  const weekly = topicData?.weekly || [];
+  const ytdRevenue = weekly.reduce((sum, w) => sum + (w.revenue || 0), 0);
+
+  const fmtM = (n) => {
+    if (n == null || n === 0) return "-";
+    if (n >= 1000000) return `$${(n / 1000000).toFixed(1)}M`;
+    if (n >= 1000) return `$${(n / 1000).toFixed(0)}K`;
+    return `$${n}`;
+  };
+
+  const kpis = [
+    { label: "TOTAL REVENUE",    value: ytdRevenue > 0 ? fmtM(ytdRevenue) : fmtM(d.total_revenue), sub: ytdRevenue > 0 ? "52-week total" : "latest period", color: ACCENT },
+    { label: "GROSS MARGIN",     value: d.gross_margin_pct != null ? `${Number(d.gross_margin_pct).toFixed(1)}%` : "-", sub: "blended avg",  color: GREEN },
+    { label: "TRANSACTIONS",     value: d.total_transactions != null ? Number(d.total_transactions).toLocaleString() : "-", sub: "daily avg", color: GOLD },
+    { label: "AVG BASKET",       value: d.avg_basket ? `$${d.avg_basket}` : "-", sub: "per visit", color: PURPLE },
+    { label: "PL PENETRATION",   value: d.pl_penetration_pct != null ? `${Number(d.pl_penetration_pct).toFixed(1)}%` : "-", sub: "of revenue", color: GOLD },
+    { label: "OOS RATE",         value: d.oos_rate_pct != null ? `${Number(d.oos_rate_pct).toFixed(1)}%` : "-", sub: "availability", color: (d.oos_rate_pct || 0) > 1 ? WARN : ACCENT },
+  ];
+
+  return (
+    <div style={{ padding: "1.5rem", height: "100%", display: "flex", flexDirection: "column", gap: "1rem", boxSizing: "border-box" }}>
+      <div>
+        <div style={{ fontFamily: "monospace", fontSize: "0.6rem", color: ACCENT, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "0.2rem" }}>
+          {(retailer || "kroger").toUpperCase()} · {category || "Category"}
+        </div>
+        <div style={{ fontFamily: "monospace", fontSize: "0.65rem", color: TEXT, letterSpacing: "0.08em" }}>
+          Fiscal Year 2025 · YTD Performance
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", flex: 1 }}>
+        {kpis.map((k, i) => (
+          <div key={i} style={{ background: PANEL, border: `1px solid ${BORDER}`, borderLeft: `3px solid ${k.color}`, borderRadius: 8, padding: "1rem 1.2rem", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            <div style={{ fontFamily: "monospace", fontSize: "0.58rem", color: TEXT, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "0.4rem" }}>{k.label}</div>
+            <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.8rem", fontWeight: 700, color: "#e2e8f0", lineHeight: 1, marginBottom: "0.3rem" }}>{k.value}</div>
+            <div style={{ fontFamily: "monospace", fontSize: "0.6rem", color: TEXT }}>{k.sub}</div>
+          </div>
+        ))}
+      </div>
+      {d.top_category && (
+        <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+          <div style={{ fontFamily: "monospace", fontSize: "0.65rem", color: GREEN }}>
+            ↑ TOP: {d.top_category?.category} · {d.top_category?.revenue ? `$${(d.top_category.revenue / 1000).toFixed(0)}K` : ""}
+          </div>
+          {d.bottom_category && (
+            <div style={{ fontFamily: "monospace", fontSize: "0.65rem", color: WARN }}>
+              ↓ BOTTOM: {d.bottom_category?.category} · {d.bottom_category?.revenue ? `$${(d.bottom_category.revenue / 1000).toFixed(0)}K` : ""}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function CategoryIntelligence({ retailer: retailerProp, category: categoryProp }) {
   const [msgs, setMsgs] = useState([]);
+  const [hasQuestion, setHasQuestion] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [stream, setStream] = useState("");
@@ -764,6 +826,7 @@ export default function CategoryIntelligence({ retailer: retailerProp, category:
     const history = [...msgs, userMsg];
     setMsgs(history);
     setLoading(true);
+    setHasQuestion(true);
     setStream("");
 
     // Immediate local topic detect → switch panel while query runs
@@ -854,7 +917,7 @@ export default function CategoryIntelligence({ retailer: retailerProp, category:
               {currentRetailer.label} · Orlando MSA
             </div>
             <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.1rem", color: BRIGHT, fontWeight: 700 }}>
-              {TOPIC_LABELS[topic] || "Category Intelligence"}
+              {hasQuestion ? (TOPIC_LABELS[topic] || "Category Intelligence") : "Category Intelligence"}
             </div>
           </div>
           <div style={{ textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.3rem" }}>
@@ -862,34 +925,34 @@ export default function CategoryIntelligence({ retailer: retailerProp, category:
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: apiLoading ? GOLD : GREEN, boxShadow: `0 0 7px ${apiLoading ? GOLD : GREEN}`, animation: "pulse 2s infinite", flexShrink: 0 }} />
               <span style={{ fontFamily: "monospace", fontSize: "0.6rem", color: apiLoading ? GOLD : GREEN }}>{apiLoading ? "LOADING…" : "LIVE · 2024-2025"}</span>
             </div>
-            {topic && (
+            {hasQuestion && topic && (
               <div style={{ fontFamily: "monospace", fontSize: "0.58rem", color: ACCENT, background: "rgba(56,189,248,0.08)", border: "1px solid rgba(56,189,248,0.2)", borderRadius: 4, padding: "2px 7px", animation: "slideIn 0.3s ease" }}>
                 ⬡ {topic.toUpperCase()} VIEW
               </div>
             )}
           </div>
         </div>
-        {/* Topic navigation tabs */}
-        <div style={{ display: "flex", gap: "0.3rem", padding: "0.5rem 1.3rem 0", background: PANEL, borderBottom: `1px solid ${BORDER}`, flexShrink: 0 }}>
-          {TOPIC_BUTTONS.map(t => (
-            <button key={t} onClick={() => switchTopic(t)}
-              style={{ background: topic === t ? "rgba(56,189,248,0.12)" : "none", border: `1px solid ${topic === t ? "rgba(56,189,248,0.4)" : "transparent"}`, color: topic === t ? ACCENT : TEXT, borderRadius: "4px 4px 0 0", padding: "0.25rem 0.6rem", cursor: "pointer", fontFamily: "monospace", fontSize: "0.58rem", textTransform: "uppercase", letterSpacing: "0.08em", transition: "all 0.15s" }}>
-              {t}
-            </button>
-          ))}
-        </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: "0.9rem 1.3rem" }}>
-          <DataPanel
-            topic={topic}
-            isTransitioning={transitioning}
-            topicData={topicData}
-            dailyData={dailyData}
-            apiLoading={apiLoading}
-            apiError={apiError}
-            onDismissError={() => setApiError(null)}
-            queryResult={queryResult}
-            onDismissQuery={() => setQueryResult(null)}
-          />
+        <div style={{ flex: 1, overflowY: "auto", padding: hasQuestion ? "0.9rem 1.3rem" : "0" }}>
+          {!hasQuestion ? (
+            <ScorecardPanel
+              dailyData={dailyData}
+              topicData={topicData}
+              retailer={retailerProp || tenantId}
+              category={categoryProp}
+            />
+          ) : (
+            <DataPanel
+              topic={topic}
+              isTransitioning={transitioning}
+              topicData={topicData}
+              dailyData={dailyData}
+              apiLoading={apiLoading}
+              apiError={apiError}
+              onDismissError={() => setApiError(null)}
+              queryResult={queryResult}
+              onDismissQuery={() => setQueryResult(null)}
+            />
+          )}
         </div>
       </div>
 
@@ -902,7 +965,7 @@ export default function CategoryIntelligence({ retailer: retailerProp, category:
           </div>
           <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
             {msgs.length > 0 && (
-              <button onClick={() => { setMsgs([]); setStream(""); setTopic("revenue"); setQueryResult(null); setFeedbackGiven({}); fetchTopicData("revenue"); }}
+              <button onClick={() => { setMsgs([]); setStream(""); setTopic("revenue"); setQueryResult(null); setFeedbackGiven({}); setHasQuestion(false); fetchTopicData("revenue"); }}
                 style={{ background: "none", border: `1px solid ${BORDER}`, color: TEXT, borderRadius: 6, padding: "0.22rem 0.65rem", cursor: "pointer", fontFamily: "monospace", fontSize: "0.62rem" }}>
                 Clear
               </button>
