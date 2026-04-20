@@ -603,7 +603,6 @@ CRITICAL INSTRUCTIONS:
 
 6. End every answer with a concrete → Next: action, not a question asking if you should flag something.`;
 }
-}
 
 async function askClaude(messages, onChunk, context) {
   const system = buildSystemPrompt(context);
