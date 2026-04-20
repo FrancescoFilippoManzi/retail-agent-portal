@@ -7,7 +7,7 @@ class ErrorBoundary extends Component {
     if (this.state.error) {
       return (
         <div style={{ padding: 24, background: "#1a0000", color: "#ff6b6b", fontFamily: "monospace", fontSize: 13, whiteSpace: "pre-wrap" }}>
-          <strong>CategoryIntelligence crashed:</strong>{"\n\n"}
+          <strong>Component crashed:</strong>{"\n\n"}
           {this.state.error.message}{"\n\n"}
           {this.state.error.stack}
         </div>
@@ -16,6 +16,7 @@ class ErrorBoundary extends Component {
     return this.props.children;
   }
 }
+
 import LoginPage from "./components/LoginPage.jsx";
 import { getState, advanceWeek, resetSim } from "./api.js";
 import KPIBar from "./components/KPIBar.jsx";
@@ -34,37 +35,114 @@ import RecommendationsPanel from "./components/RecommendationsPanel.jsx";
 import AgentOverview from "./components/AgentOverview.jsx";
 import CategoryResetPanel from "./components/CategoryResetPanel.jsx";
 import CIrceLogo from "./components/CIrceLogo.jsx";
+import LandingPage from "./components/LandingPage.jsx";
+import PricingPromoAgent from "./components/PricingPromoAgent";
+
+// ─── Navigation structure ─────────────────────────────────────────────────────
+// Each group has either a direct `leaf` tab or `subtabs` with a `defaultTab`.
+const NAV_GROUPS = [
+  {
+    id: "intelligence",
+    label: "Category AI Companion",
+    leaf: "intelligence",
+  },
+  {
+    id: "dashboard",
+    label: "Category Dashboard",
+    defaultTab: "brief",
+    subtabs: [
+      { id: "brief",  label: "Category Brief" },
+      { id: "market", label: "Market Grid" },
+    ],
+  },
+  {
+    id: "agentsGroup",
+    label: "Circe Agents",
+    defaultTab: "agents",
+    subtabs: [
+      { id: "agents",          label: "Agents" },
+      { id: "recommendations", label: "Recommendations" },
+      { id: "howItWorks",      label: "How It Works" },
+      { id: "categoryReset",   label: "Category Reset" },
+    ],
+  },
+  {
+    id: "simulator",
+    label: "Category Performance Simulator",
+    defaultTab: "actions",
+    subtabs: [
+      { id: "actions", label: "Kroger Decisions" },
+      { id: "history", label: "Performance Report" },
+    ],
+  },
+  {
+    id: "pricing",
+    label: "Pricing & Promo",
+    leaf: "pricing",
+  },
+];
+
+// Derive which top group owns a leaf tab
+function groupOf(leafTab) {
+  for (const g of NAV_GROUPS) {
+    if (g.leaf === leafTab) return g.id;
+    if (g.subtabs?.some(s => s.id === leafTab)) return g.id;
+  }
+  return NAV_GROUPS[0].id;
+}
+
+// Leaf tabs that take full width (no Circe panel on the right)
+const FULL_WIDTH_LEAVES = new Set([
+  "intelligence", "agents", "recommendations", "howItWorks", "categoryReset", "history", "brief", "pricing",
+]);
 
 const s = {
   app: { display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" },
   topBar: {
     display: "flex", alignItems: "center", justifyContent: "space-between",
-    padding: "8px 20px", background: "#161b22", borderBottom: "1px solid #21262d", flexShrink: 0
+    padding: "8px 20px", background: "#161b22", borderBottom: "1px solid #21262d", flexShrink: 0,
   },
-  logo: { fontSize: 16, fontWeight: 800, color: "#e31837", letterSpacing: "0.12em" },
   logoSub: { fontSize: 11, color: "#8b949e", marginLeft: 10 },
   resetBtn: {
     padding: "4px 12px", background: "transparent", border: "1px solid #30363d",
-    borderRadius: 5, color: "#8b949e", fontSize: 11, cursor: "pointer"
+    borderRadius: 5, color: "#8b949e", fontSize: 11, cursor: "pointer",
   },
   body: { flex: 1, display: "flex", overflow: "hidden", minHeight: 0 },
   left: { flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", minWidth: 0 },
   right: { width: 340, flexShrink: 0, overflow: "hidden" },
-  tabs: { display: "flex", borderBottom: "1px solid #21262d", background: "#161b22", flexShrink: 0 },
-  tab: { padding: "9px 20px", fontSize: 12, cursor: "pointer", color: "#8b949e", border: "none", background: "none", whiteSpace: "nowrap" },
-  tabActive: { color: "#e6edf3", borderBottom: "2px solid #1f6feb" },
-  loading: { display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", color: "#8b949e", fontSize: 16 }
+  // Top-group tab bar
+  topTabs: {
+    display: "flex", borderBottom: "1px solid #21262d",
+    background: "#161b22", flexShrink: 0,
+  },
+  topTab: {
+    padding: "9px 18px", fontSize: 12, cursor: "pointer",
+    color: "#8b949e", border: "none", background: "none", whiteSpace: "nowrap",
+  },
+  topTabActive: { color: "#e6edf3", borderBottom: "2px solid #1f6feb" },
+  // Subtab bar
+  subTabs: {
+    display: "flex", borderBottom: "1px solid #21262d",
+    background: "#0d1117", flexShrink: 0, paddingLeft: 12,
+  },
+  subTab: {
+    padding: "6px 16px", fontSize: 11, cursor: "pointer",
+    color: "#6e7681", border: "none", background: "none", whiteSpace: "nowrap",
+  },
+  subTabActive: { color: "#cdd9e5", borderBottom: "2px solid #388bfd" },
+  loading: { display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", color: "#8b949e", fontSize: 16 },
 };
 
 export default function App() {
-  const [authed, setAuthed] = useState(() => localStorage.getItem("circe_auth") === "true");
-  const [user, setUser] = useState(() => localStorage.getItem("circe_user") ?? "");
-  const [state, setState] = useState(null);
-  const [tab, setTab] = useState("brief");
-  const [advancing, setAdvancing] = useState(false);
+  const [authed, setAuthed]         = useState(() => localStorage.getItem("circe_auth") === "true");
+  const [user, setUser]             = useState(() => localStorage.getItem("circe_user") ?? "");
+  const [state, setState]           = useState(null);
+  const [showLanding, setShowLanding] = useState(true);
+  const [tab, setTab]               = useState("intelligence"); // leaf tab ID
+  const [advancing, setAdvancing]   = useState(false);
   const [showRunModal, setShowRunModal] = useState(false);
-  const [runStrategy, setRunStrategy] = useState("balanced");
-  const [brief, setBrief] = useState(() => loadBrief());
+  const [runStrategy, setRunStrategy]   = useState("balanced");
+  const [brief, setBrief]           = useState(() => loadBrief());
 
   useEffect(() => {
     getState().then(s => setState({ ...s, season: getSeason(s.week) }));
@@ -75,14 +153,14 @@ export default function App() {
     const newState = await advanceWeek(decisions);
     setState({ ...newState, season: getSeason(newState.week) });
     setAdvancing(false);
-    setTab("market");
+    setTab("market"); // → Category Dashboard > Market Grid
   }
 
   async function handleReset() {
     if (!confirm("Reset simulation to Week 0?")) return;
     const fresh = await resetSim();
     setState({ ...fresh, season: getSeason(0) });
-    setTab("brief");
+    setTab("brief"); // → Category Dashboard > Category Brief
   }
 
   async function handleRunComplete() {
@@ -92,27 +170,36 @@ export default function App() {
 
   function handleRunClose() {
     setShowRunModal(false);
-    setTab("history");
+    setTab("history"); // → Category Performance Simulator > Performance Report
   }
 
-  if (!authed) return <LoginPage onLogin={(email) => { setAuthed(true); setUser(email); }} />;
-  if (!state) return <div style={s.loading}>Loading simulation…</div>;
+  if (!authed) return <LoginPage onLogin={(email) => { setAuthed(true); setUser(email); setShowLanding(true); }} />;
+  if (!state)  return <div style={s.loading}>Loading simulation…</div>;
 
-  const TABS = [
-    { id: "brief",   label: "Category Brief" },
-    { id: "market",  label: "Market Grid" },
-    { id: "actions", label: "Kroger Decisions" },
-    { id: "history",      label: "Performance Report" },
-    { id: "intelligence",    label: "Category Intelligence" },
-    { id: "agents",          label: "Agents" },
-    { id: "recommendations", label: "Recommendations" },
-    { id: "howItWorks",      label: "How It Works" },
-    { id: "categoryReset",   label: "Category Reset" },
-  ];
+  if (showLanding) {
+    return (
+      <LandingPage
+        onEnter={() => setShowLanding(false)}
+        onNavigate={(leafTab) => {
+          setTab(leafTab);
+          setShowLanding(false);
+        }}
+      />
+    );
+  }
 
-  // History tab doesn't show Circe panel (full width report)
-  const FULL_WIDTH_TABS = new Set(["history", "brief", "intelligence", "agents", "recommendations", "howItWorks", "categoryReset"]);
-  const showCirce = !FULL_WIDTH_TABS.has(tab);
+  const activeGroup   = groupOf(tab);
+  const activeGroupDef = NAV_GROUPS.find(g => g.id === activeGroup);
+  const showSubTabs   = !!activeGroupDef?.subtabs;
+  const showCirce     = !FULL_WIDTH_LEAVES.has(tab);
+
+  function handleTopTabClick(group) {
+    if (group.leaf) {
+      setTab(group.leaf);
+    } else {
+      setTab(group.defaultTab);
+    }
+  }
 
   return (
     <div style={s.app}>
@@ -124,7 +211,7 @@ export default function App() {
       <div style={s.topBar}>
         <div style={{ display: "flex", alignItems: "center" }}>
           <CIrceLogo width={72} color="#e8a020" />
-          <span style={s.logoSub}>FY 2026 Category Simulation · {state.marketName} · Paper Goods</span>
+          <span style={s.logoSub}>FY 2026 · {state.marketName} · Paper Goods</span>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {state.lastEvent && (
@@ -133,6 +220,7 @@ export default function App() {
             </span>
           )}
           <span style={{ fontSize: 11, color: "#8b949e" }}>{user}</span>
+          <button style={{ ...s.resetBtn, borderColor: "#d4a24c44", color: "#d4a24c" }} onClick={() => setShowLanding(true)}>⌂ Home</button>
           <button style={s.resetBtn} onClick={handleReset}>Reset</button>
           <button style={{ ...s.resetBtn, borderColor: "#f8514933", color: "#f85149" }}
             onClick={() => { localStorage.removeItem("circe_auth"); localStorage.removeItem("circe_user"); setAuthed(false); }}>
@@ -144,18 +232,43 @@ export default function App() {
       {/* KPI bar */}
       <KPIBar state={state} />
 
-      {/* Tabs */}
-      <div style={s.tabs}>
-        {TABS.map(({ id, label }) => (
-          <button key={id} style={{ ...s.tab, ...(tab === id ? s.tabActive : {}) }} onClick={() => setTab(id)}>
-            {label}
+      {/* Top-level group tabs */}
+      <div style={s.topTabs}>
+        {NAV_GROUPS.map(group => (
+          <button
+            key={group.id}
+            style={{ ...s.topTab, ...(activeGroup === group.id ? s.topTabActive : {}) }}
+            onClick={() => handleTopTabClick(group)}
+          >
+            {group.label}
           </button>
         ))}
       </div>
 
-      <div style={s.body}>
-        <div style={{ ...s.left, ...(FULL_WIDTH_TABS.has(tab) ? { maxWidth: "100%" } : {}), ...(tab === "intelligence" ? { overflowY: "hidden" } : {}) }}>
+      {/* Subtab bar — only shown when the active group has subtabs */}
+      {showSubTabs && (
+        <div style={s.subTabs}>
+          {activeGroupDef.subtabs.map(sub => (
+            <button
+              key={sub.id}
+              style={{ ...s.subTab, ...(tab === sub.id ? s.subTabActive : {}) }}
+              onClick={() => setTab(sub.id)}
+            >
+              {sub.label}
+            </button>
+          ))}
+        </div>
+      )}
 
+      {/* Body */}
+      <div style={s.body}>
+        <div style={{
+          ...s.left,
+          ...(FULL_WIDTH_LEAVES.has(tab) ? { maxWidth: "100%" } : {}),
+          ...((tab === "intelligence" || tab === "pricing") ? { overflowY: "hidden" } : {}),
+        }}>
+
+          {/* Category Dashboard */}
           {tab === "brief" && (
             <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
               <div style={{ flex: 1, overflowY: "auto" }}>
@@ -169,11 +282,9 @@ export default function App() {
               />
             </div>
           )}
+          {tab === "market" && <MarketGrid skus={state.skus} />}
 
-          {tab === "market" && (
-            <MarketGrid skus={state.skus} />
-          )}
-
+          {/* Category Performance Simulator */}
           {tab === "actions" && (
             <ActionPanel
               skus={state.skus}
@@ -183,7 +294,6 @@ export default function App() {
               loading={advancing}
             />
           )}
-
           {tab === "history" && (
             <PerformanceReport
               history={state.history}
@@ -192,15 +302,19 @@ export default function App() {
             />
           )}
 
+          {/* Category AI Companion */}
           {tab === "intelligence" && <ErrorBoundary><CategoryIntelligence /></ErrorBoundary>}
 
+          {/* Circe Agents */}
           {tab === "agents"          && <AgentPanel />}
           {tab === "recommendations" && <RecommendationsPanel />}
           {tab === "howItWorks"      && <AgentOverview />}
           {tab === "categoryReset"   && <CategoryResetPanel />}
+
+          {/* Pricing & Promo Agent */}
+          {tab === "pricing" && <ErrorBoundary><PricingPromoAgent /></ErrorBoundary>}
         </div>
 
-        {/* Circe panel — hidden on brief and history tabs */}
         {showCirce && (
           <div style={s.right}>
             <CircePanel state={state} disabled={advancing} />
