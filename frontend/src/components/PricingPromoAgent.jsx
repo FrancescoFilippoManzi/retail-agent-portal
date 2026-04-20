@@ -769,7 +769,7 @@ function ChatPanel({ context }) {
         {messages.length === 0 && (
           <div>
             <div style={{ fontSize: "0.65rem", color: TEXT, marginBottom: 10, textAlign: "center" }}>
-              Ask anything about {context.category} strategy at {context.retailer}
+              I have full visibility of your pricing data. Tell me what decision you need to make.
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {SUGGESTION_CHIPS.map((chip) => (

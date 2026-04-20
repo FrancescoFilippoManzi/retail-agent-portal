@@ -901,29 +901,6 @@ export default function CategoryIntelligence({ retailer: retailerProp, category:
             <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.05rem", color: BRIGHT, fontWeight: 600 }}>Category Manager Chat</div>
           </div>
           <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
-            {/* Tenant / Retailer Selector */}
-            <div style={{ display: "flex", gap: "0.2rem", alignItems: "center" }}>
-              {RETAILERS.map(r => (
-                <button key={r.id} onClick={() => changeTenant(r.id)}
-                  title={r.label}
-                  style={{
-                    background: tenantId === r.id ? `${r.color}20` : "none",
-                    border: `1px solid ${tenantId === r.id ? r.color : BORDER}`,
-                    color: tenantId === r.id ? r.color : TEXT,
-                    borderRadius: 4,
-                    padding: "0.18rem 0.45rem",
-                    cursor: "pointer",
-                    fontFamily: "monospace",
-                    fontSize: "0.55rem",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                    transition: "all 0.15s",
-                    fontWeight: tenantId === r.id ? 700 : 400,
-                  }}>
-                  {r.label}
-                </button>
-              ))}
-            </div>
             {msgs.length > 0 && (
               <button onClick={() => { setMsgs([]); setStream(""); setTopic("revenue"); setQueryResult(null); setFeedbackGiven({}); fetchTopicData("revenue"); }}
                 style={{ background: "none", border: `1px solid ${BORDER}`, color: TEXT, borderRadius: 6, padding: "0.22rem 0.65rem", cursor: "pointer", fontFamily: "monospace", fontSize: "0.62rem" }}>
@@ -940,10 +917,10 @@ export default function CategoryIntelligence({ retailer: retailerProp, category:
           {msgs.length === 0 && !stream ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: "1.3rem", textAlign: "center" }}>
               <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.25rem", color: BRIGHT, fontWeight: 600, lineHeight: 1.35 }}>
-                What's happening<br />in your category?
+                Let's work together<br />to win in the market
               </div>
               <div style={{ fontSize: "0.76rem", color: TEXT, maxWidth: 300, lineHeight: 1.7 }}>
-                Ask a question — the data panel on the left will update with live charts and KPIs from the API.
+                I have full visibility of your category data. Tell me what decision you need to make.
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", justifyContent: "center", maxWidth: 380 }}>
                 {SUGG.map((s, i) => (
