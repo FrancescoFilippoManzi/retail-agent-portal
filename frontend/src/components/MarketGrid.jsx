@@ -49,13 +49,13 @@ function PriceCell({ sku, retailer }) {
   );
 }
 
-export default function MarketGrid({ skus }) {
+export default function MarketGrid({ skus, retailer, category }) {
   // Group by subcategory
   const subcats = [...new Set(skus.map(s => s.subcategory))];
 
   return (
     <div style={s.wrap}>
-      <div style={s.title}>Market Price Grid — Dallas/Uptown</div>
+      <div style={s.title}>Market Price Grid — {retailer ? retailer.charAt(0).toUpperCase() + retailer.slice(1) : "Kroger"} · Dallas/Uptown{category ? ` · ${category}` : ""}</div>
       <div style={{ fontSize: 10, color: "#8b949e", marginBottom: 8 }}>
         <span style={{ color: "#f0883e", fontWeight: 700 }}>Orange</span> = lowest price in row &nbsp;|&nbsp;
         <span style={{ color: "#3fb950" }}>Green</span> = active promo &nbsp;|&nbsp;

@@ -227,14 +227,7 @@ export default function App() {
       <div style={s.topBar}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <CIrceLogo width={72} color="#e8a020" />
-          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <span style={s.logoSub}>FY 2026 · {state.marketName} · Paper Goods</span>
-            {!navHidden && (
-              <span style={{ fontSize: 10, color: "#d4a24c", fontFamily: "monospace", letterSpacing: "0.04em" }}>
-                ⊞ {retailer.charAt(0).toUpperCase() + retailer.slice(1)} · {category}
-              </span>
-            )}
-          </div>
+          <span style={s.logoSub}>FY 2026 · {state.marketName} · Paper Goods</span>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {state.lastEvent && (
@@ -252,8 +245,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* KPI bar */}
-      <KPIBar state={state} />
+      {/* KPI bar — simulation tabs only */}
+      {["brief", "market", "actions", "history"].includes(tab) && <KPIBar state={state} />}
 
       {/* Top-level group tabs — hidden in isolated mode */}
       {!navHidden ? (
@@ -298,6 +291,20 @@ export default function App() {
         </div>
       )}
 
+      {/* Context reminder bar — below nav, above content */}
+      {!navHidden && (
+        <div style={{
+          padding: "3px 20px", background: "#09131f", borderBottom: "1px solid #0f2540",
+          fontFamily: "monospace", fontSize: "0.65rem", color: "#fbbf24",
+          letterSpacing: "0.1em", display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0,
+        }}>
+          <span>⊞</span>
+          <span style={{ textTransform: "uppercase" }}>{retailer.toUpperCase()}</span>
+          <span style={{ color: "#1e3a5f" }}>·</span>
+          <span>{category}</span>
+        </div>
+      )}
+
       {/* Body */}
       <div style={s.body}>
         <div style={{
@@ -310,7 +317,7 @@ export default function App() {
           {tab === "brief" && (
             <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
               <div style={{ flex: 1, overflowY: "auto" }}>
-                <CategoryBrief onBriefChange={setBrief} />
+                <CategoryBrief onBriefChange={setBrief} retailer={retailer} category={category} />
               </div>
               <RunStrategySidebar
                 currentWeek={state.week}
@@ -320,7 +327,7 @@ export default function App() {
               />
             </div>
           )}
-          {tab === "market" && <MarketGrid skus={state.skus} />}
+          {tab === "market" && <MarketGrid skus={state.skus} retailer={retailer} category={category} />}
 
           {/* Category Performance Simulator */}
           {tab === "actions" && (
@@ -330,6 +337,8 @@ export default function App() {
               totalWeeks={state.totalWeeks}
               onAdvance={handleAdvance}
               loading={advancing}
+              retailer={retailer}
+              category={category}
             />
           )}
           {tab === "history" && (
@@ -337,6 +346,8 @@ export default function App() {
               history={state.history}
               krogerKPIs={state.krogerKPIs}
               brief={brief}
+              retailer={retailer}
+              category={category}
             />
           )}
 
@@ -344,8 +355,8 @@ export default function App() {
           {tab === "intelligence" && <ErrorBoundary><CategoryIntelligence retailer={retailer} category={category} /></ErrorBoundary>}
 
           {/* Circe Agents */}
-          {tab === "agents"          && <AgentPanel />}
-          {tab === "recommendations" && <RecommendationsPanel />}
+          {tab === "agents"          && <AgentPanel retailer={retailer} category={category} />}
+          {tab === "recommendations" && <RecommendationsPanel retailer={retailer} category={category} />}
           {tab === "howItWorks"      && <AgentOverview />}
           {tab === "categoryReset"   && <CategoryResetPanel />}
 

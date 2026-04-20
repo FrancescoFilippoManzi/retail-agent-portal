@@ -98,7 +98,7 @@ const DEFAULT_GUARDRAILS = {
   bannedPromoSKUs: []
 };
 
-export default function CategoryBrief({ onBriefChange }) {
+export default function CategoryBrief({ onBriefChange, retailer, category }) {
   const [brief, setBrief] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -144,7 +144,7 @@ export default function CategoryBrief({ onBriefChange }) {
     <div style={s.wrap}>
       <div style={s.header}>
         <div style={s.title}>FY 2026 Category Strategy Brief</div>
-        <div style={s.subtitle}>Paper Goods · Dallas/Uptown · Kroger · Jan – Dec 2026</div>
+        <div style={s.subtitle}>{category || "Paper Goods"} · Dallas/Uptown · {retailer ? retailer.charAt(0).toUpperCase() + retailer.slice(1) : "Kroger"} · Jan – Dec 2026</div>
       </div>
 
       {/* Category Role */}

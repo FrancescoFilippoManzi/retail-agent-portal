@@ -660,7 +660,7 @@ const SUGG_ADMIN = [
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function CategoryIntelligence({ retailer: retailerProp }) {
+export default function CategoryIntelligence({ retailer: retailerProp, category: categoryProp }) {
   const [msgs, setMsgs] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -741,6 +741,20 @@ export default function CategoryIntelligence({ retailer: retailerProp }) {
     setTimeout(() => { setTopic(newTopic); setTransitioning(false); }, 320);
     if (alsoFetch) fetchTopicData(newTopic);
   }, [fetchTopicData]);
+
+  // Pre-select topic based on category prop from landing page
+  useEffect(() => {
+    if (!categoryProp) return;
+    const topicMap = {
+      "Dairy & Eggs": "revenue",
+      "Beverages":    "revenue",
+      "Snacks":       "revenue",
+      "Frozen Pizza": "promo",
+      "Paper & Cleaning": "oos",
+    };
+    const t = topicMap[categoryProp] || "revenue";
+    switchTopic(t, true);
+  }, [categoryProp, switchTopic]);
 
   // Topic buttons — only valid topics for new DB
   const TOPIC_BUTTONS = ["revenue", "oos", "pricing", "promo", "assortment"];

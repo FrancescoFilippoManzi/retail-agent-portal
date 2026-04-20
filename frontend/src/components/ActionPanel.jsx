@@ -51,7 +51,7 @@ const s = {
   circeTag: { fontSize: 9, color: "#6e40c9", background: "#2d1b69", padding: "1px 5px", borderRadius: 3, marginLeft: 6 }
 };
 
-export default function ActionPanel({ skus, week, totalWeeks, onAdvance, loading }) {
+export default function ActionPanel({ skus, week, totalWeeks, onAdvance, loading, retailer, category }) {
   const [prices, setPrices] = useState({});
   const [promoType, setPromoType] = useState({});
   const [promoPct, setPromoPct] = useState({});

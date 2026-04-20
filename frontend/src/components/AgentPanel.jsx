@@ -63,7 +63,7 @@ const AGENT_GROUPS = [
 const ALL_MODULE_IDS = AGENT_GROUPS.flatMap(g => g.modules.map(m => m.id))
 const EMPTY_LINES = Object.fromEntries(ALL_MODULE_IDS.map(id => [id, []]))
 
-export default function AgentPanel() {
+export default function AgentPanel({ retailer, category }) {
   const [weeks,   setWeeks]   = useState([])
   const [weekId,  setWeekId]  = useState(null)
   const [running, setRunning] = useState({})   // { module_id: true }

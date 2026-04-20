@@ -175,7 +175,7 @@ function Scoreboard({ history, brief, krogerKPIs }) {
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export default function PerformanceReport({ history, krogerKPIs, brief }) {
+export default function PerformanceReport({ history, krogerKPIs, brief, retailer, category }) {
   const [expanded, setExpanded] = useState(null);
   const [drillEntry, setDrillEntry] = useState(null);
 

@@ -370,7 +370,7 @@ const thStyle = {
   borderBottom: '2px solid #e8e4dc', background: '#faf9f6', whiteSpace: 'nowrap',
 }
 
-export default function RecommendationsPanel() {
+export default function RecommendationsPanel({ retailer, category }) {
   const [weeks, setWeeks]   = useState([])
   const [weekId, setWeekId] = useState(null)
   const [data, setData]     = useState(null)
