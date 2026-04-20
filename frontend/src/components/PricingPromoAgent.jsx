@@ -543,37 +543,66 @@ function buildSystemPrompt(context) {
   const ach = objectives?.current_achievement || {};
   const obj = objectives?.objectives || {};
 
-  const topRecsText = (topRecs || []).slice(0, 5).map((r, i) =>
-    `${i + 1}. ${r.name} — Urgency: ${r.recommendation_urgency}, ` +
-    `Rec: ${r.chosen_option_label}, ε: ${r.segment_profile?.weighted_avg_elasticity}`
+  // All 7 segments with full elasticity + mechanic + pantry risk
+  const segText = (segments || []).map((s) =>
+    `  • ${s.segment_name}: ${(s.pct_of_total_customers * 100).toFixed(0)}% of shoppers | ε=${s.elasticity_midpoint?.toFixed(2)} | best mechanic: ${s.best_mechanic}`
   ).join("\n");
 
-  const segText = (segments || []).map((s) =>
-    `  ${s.segment_name} (${(s.pct_of_total_customers * 100).toFixed(0)}%, ε≈${s.elasticity_midpoint?.toFixed(2)}) — ${s.best_mechanic}`
-  ).join("\n");
+  // Top 5 recs with FULL per-SKU segment breakdown so AI can cite exact numbers
+  const topRecsText = (topRecs || []).slice(0, 5).map((r, i) => {
+    const p = r.segment_profile || {};
+    const comp = [...(p.segment_composition || [])]
+      .sort((a, b) => b.pct_of_buyers - a.pct_of_buyers)
+      .map((s) =>
+        `      - ${s.segment_name}: ${(s.pct_of_buyers * 100).toFixed(0)}% of buyers | ε=${s.elasticity?.toFixed(2)} | ${s.best_mechanic} | pantry risk: ${s.pantry_load_risk} | retention post-promo: ${(s.retention_after_promo * 100).toFixed(0)}%`
+      ).join("\n");
+    const ds = (p.segment_composition || []).find((s) => s.segment_name === "Deal Stackers");
+    const pantryWarn = ds && ds.pct_of_buyers > 0.20
+      ? `\n      ⚠ PANTRY LOAD WARNING: Deal Stackers = ${(ds.pct_of_buyers * 100).toFixed(0)}% of buyers — only ${(ds.retention_after_promo * 100).toFixed(0)}% re-purchase at full price post-promo`
+      : "";
+    return `${i + 1}. ${r.name}
+    Action: ${r.chosen_option_label} | Urgency: ${r.recommendation_urgency} | Weighted ε: ${p.weighted_avg_elasticity} vs category avg ${p.category_avg_elasticity}
+    Dominant segment: ${p.dominant_segment} (${((p.dominant_segment_pct || 0) * 100).toFixed(0)}%)
+    Full buyer segment breakdown:
+${comp}${pantryWarn}`;
+  }).join("\n\n");
 
   return `You are the Pricing & Promo AI for ${retailer || "Kroger"} Category Management.
+Category: ${category || "Snacks"} | Retailer: ${retailer || "Kroger"}
+Objectives: Revenue ${ach.revenue_pct || 73}% achieved | Margin ${ach.margin_pct || 88}% achieved | Share ${ach.share_pct || 61}% achieved | Score: ${ach.overall_score || 0.73}
+Weights: Revenue ${((obj.revenue_weight || 0.25) * 100).toFixed(0)}% / Margin ${((obj.margin_weight || 0.35) * 100).toFixed(0)}% / Share ${((obj.share_weight || 0.40) * 100).toFixed(0)}%
 
-Current category: ${category || "Snacks"}
-Annual objectives: Revenue ${ach.revenue_pct || 73}% achieved, Margin ${ach.margin_pct || 88}% achieved, Share ${ach.share_pct || 61}% achieved.
-Overall score: ${ach.overall_score || 0.73}
-Objective weights: Revenue ${((obj.revenue_weight || 0.25) * 100).toFixed(0)}%, Margin ${((obj.margin_weight || 0.35) * 100).toFixed(0)}%, Share ${((obj.share_weight || 0.40) * 100).toFixed(0)}%
-
-Customer segments:
+═══ ALL 7 CUSTOMER SEGMENTS ═══
 ${segText}
 
-Top recommendations this week:
+═══ TOP 5 PRIORITY SKUs THIS WEEK (with full segment data) ═══
 ${topRecsText}
 
-When answering:
-- Always identify the dominant buyer segment for any SKU discussed
-- Adjust recommendations by segment composition
-- Flag pantry load risk when Deal Stackers are > 20% of buyers
-- Reference the objective score when choosing between options
-- Use actual numbers from recommendations data
-- Explain cross-SKU cannibalization effects
-- Keep answers focused and actionable
-- End with → Next: one follow-up suggestion`;
+CRITICAL INSTRUCTIONS:
+1. You already have complete customer segmentation data for this retailer. ALWAYS use it. Never say you need loyalty card data or conjoint studies — that data is already provided above as the 7 behavioral segments.
+
+2. When asked about any SKU, immediately identify:
+   - Which segment dominates that SKU's buyers (use the exact % from the data above)
+   - What that segment's elasticity is (cite the exact ε number)
+   - What mechanic works best for that segment
+   - Whether pantry load risk exists (Deal Stackers > 20%)
+
+3. Always anchor your answer to specific numbers:
+   BAD: "Value Hunters tend to be price sensitive"
+   GOOD: "Value Hunters are 41% of Planters buyers with elasticity -2.65 — a 10% price cut predicts +26% units for this segment alone"
+
+4. Structure every pricing answer as:
+   SEGMENT BREAKDOWN → RECOMMENDATION → PREDICTED OUTCOME
+   Never end with "you would need more data" if you already have segment composition data.
+
+5. For promotion mechanics always specify:
+   - Exact mechanic (BOGO / 10% off / bundle 2-for-$X)
+   - Which segment it targets and why (cite their ε and % of buyers)
+   - Expected lift calculation: units = base × (1 + |ε| × price_change_pct)
+   - Pantry load warning if Deal Stackers > 20% with their post-promo retention rate
+
+6. End every answer with a concrete → Next: action, not a question asking if you should flag something.`;
+}
 }
 
 async function askClaude(messages, onChunk, context) {
