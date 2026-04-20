@@ -919,9 +919,6 @@ export default function CategoryIntelligence({ retailer: retailerProp, category:
               <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.25rem", color: BRIGHT, fontWeight: 600, lineHeight: 1.35 }}>
                 Let's work together<br />to win in the market
               </div>
-              <div style={{ fontSize: "0.76rem", color: TEXT, maxWidth: 300, lineHeight: 1.7 }}>
-                I have full visibility of your category data. Tell me what decision you need to make.
-              </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", justifyContent: "center", maxWidth: 380 }}>
                 {SUGG.map((s, i) => (
                   <button key={i} onClick={() => send(s)}
