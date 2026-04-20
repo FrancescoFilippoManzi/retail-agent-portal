@@ -660,7 +660,7 @@ const SUGG_ADMIN = [
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function CategoryIntelligence() {
+export default function CategoryIntelligence({ retailer: retailerProp }) {
   const [msgs, setMsgs] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -673,7 +673,7 @@ export default function CategoryIntelligence() {
   const [apiError, setApiError] = useState(null);
   const [queryResult, setQueryResult] = useState(null);
   const [feedbackGiven, setFeedbackGiven] = useState({});
-  const [tenantId, setTenantId] = useState("kroger");
+  const [tenantId, setTenantId] = useState(retailerProp || "kroger");
   const bottomRef = useRef(null);
   const taRef = useRef(null);
 

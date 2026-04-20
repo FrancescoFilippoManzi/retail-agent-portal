@@ -109,58 +109,68 @@ html, body {
   margin-top: 1px;
 }
 
-.stats {
+.ctx-bar {
   flex: 1;
   display: flex;
-  justify-content: space-around;
   align-items: center;
-  gap: 32px;
+  gap: 12px;
   padding-left: 24px;
   border-left: 0.5px solid var(--border);
+  animation: fadeUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s both;
 }
 
-.stat {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  animation: fadeUp 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-.stat:nth-child(1) { animation-delay: 0.1s; }
-.stat:nth-child(2) { animation-delay: 0.18s; }
-.stat:nth-child(3) { animation-delay: 0.26s; }
-.stat:nth-child(4) { animation-delay: 0.34s; }
-.stat:nth-child(5) { animation-delay: 0.42s; }
-
-.stat-label {
-  font-size: 10px;
+.ctx-label {
+  font-size: 9px;
   letter-spacing: 0.28em;
   text-transform: uppercase;
   color: var(--ivory-faint);
+  white-space: nowrap;
 }
 
-.stat-row {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-
-.stat-value {
-  font-family: var(--font-serif);
-  font-size: 28px;
-  font-style: italic;
-  font-weight: 400;
+.ctx-select {
+  background: var(--ink-soft);
+  border: 0.5px solid var(--border-strong);
   color: var(--ivory);
-  letter-spacing: -0.01em;
-  line-height: 1;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236B6458' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 26px;
+}
+.ctx-select:focus, .ctx-select:hover {
+  border-color: var(--gold-deep);
 }
 
-.stat-change {
-  font-size: 11px;
-  letter-spacing: 0.02em;
+.ctx-select option {
+  background: #14121F;
+  color: var(--ivory);
 }
-.stat-change.positive { color: var(--teal); }
-.stat-change.negative { color: var(--crimson); }
-.stat-change.gold { color: var(--gold); }
+
+.ctx-btn {
+  background: transparent;
+  border: 0.5px solid var(--border-strong);
+  color: var(--ivory-mute);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  padding: 6px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
+}
+.ctx-btn:hover {
+  border-color: var(--gold);
+  color: var(--gold-bright);
+}
 
 .topbar-right {
   display: flex;
@@ -660,42 +670,26 @@ html, body {
       <div class="logo-tag">Category AI</div>
     </div>
 
-    <!-- Stats strip (placeholders — replace with real values) -->
-    <div class="stats">
-      <div class="stat">
-        <div class="stat-label">Revenue MTD</div>
-        <div class="stat-row">
-          <div class="stat-value">$4.2M</div>
-          <div class="stat-change positive">+3.2%</div>
-        </div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Units</div>
-        <div class="stat-row">
-          <div class="stat-value">687K</div>
-          <div class="stat-change positive">+1.8%</div>
-        </div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Active SKUs</div>
-        <div class="stat-row">
-          <div class="stat-value">2,967</div>
-        </div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">OOS Risk</div>
-        <div class="stat-row">
-          <div class="stat-value">3</div>
-          <div class="stat-change negative">48 hrs</div>
-        </div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Signals</div>
-        <div class="stat-row">
-          <div class="stat-value">12</div>
-          <div class="stat-change gold">2 urgent</div>
-        </div>
-      </div>
+    <!-- Context selector bar -->
+    <div class="ctx-bar">
+      <span class="ctx-label">Retailer</span>
+      <select id="retailer-select" class="ctx-select">
+        <option value="kroger">Kroger</option>
+        <option value="publix">Publix</option>
+        <option value="walmart">Walmart</option>
+        <option value="target">Target</option>
+        <option value="costco">Costco</option>
+        <option value="admin">Admin</option>
+      </select>
+      <span class="ctx-label" style="margin-left:8px">Category</span>
+      <select id="category-select" class="ctx-select">
+        <option value="Dairy &amp; Eggs">Dairy &amp; Eggs</option>
+        <option value="Beverages">Beverages</option>
+        <option value="Snacks" selected>Snacks</option>
+        <option value="Frozen Pizza">Frozen Pizza</option>
+        <option value="Paper &amp; Cleaning">Paper &amp; Cleaning</option>
+      </select>
+      <button id="dashboard-btn" class="ctx-btn">Dashboard →</button>
     </div>
 
     <!-- Context + avatar -->
@@ -972,6 +966,25 @@ function showUnderConstruction(tile) {
   }, 1800);
 }
 
+// ═══ CONTEXT HELPERS ══════════════════════════════════════════════
+function getContext() {
+  return {
+    retailer: document.getElementById('retailer-select').value,
+    category: document.getElementById('category-select').value,
+  };
+}
+
+function postNav(tab, isolated) {
+  if (!window.parent || window.parent === window) return;
+  const { retailer, category } = getContext();
+  window.parent.postMessage({
+    type: isolated ? 'circe-navigate-isolated' : 'circe-navigate',
+    tab,
+    retailer,
+    category,
+  }, '*');
+}
+
 // ═══ NAVIGATION ═══════════════════════════════════════════════════
 document.querySelectorAll('.tile').forEach(tile => {
   tile.addEventListener('click', () => {
@@ -983,15 +996,21 @@ document.querySelectorAll('.tile').forEach(tile => {
     setTimeout(() => { tile.style.transform = ''; }, 150);
 
     if (agent === 'shadow') {
-      // Shadow Category Manager → enter the main Circe app
-      if (window.parent && window.parent !== window) {
-        window.parent.postMessage({ type: 'circe-enter' }, '*');
-      }
+      // Shadow Category Manager → Category AI Companion
+      postNav('intelligence', false);
+    } else if (agent === 'pricing') {
+      // Pricing & Promo → isolated mode (no nav bar)
+      postNav('pricing', true);
     } else {
       // All other tiles → Under construction
       showUnderConstruction(tile);
     }
   });
+});
+
+// Dashboard button
+document.getElementById('dashboard-btn').addEventListener('click', () => {
+  postNav('dashboard', false);
 });
 
 // ═══ CHAT — same backend as Category AI Companion ═════════════════

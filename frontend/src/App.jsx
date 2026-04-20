@@ -91,6 +91,16 @@ function groupOf(leafTab) {
   return NAV_GROUPS[0].id;
 }
 
+// Resolve a group id or leaf id to a leaf tab id
+function resolveLeafTab(tabId) {
+  for (const g of NAV_GROUPS) {
+    if (g.leaf === tabId) return tabId;
+    if (g.subtabs?.some(s => s.id === tabId)) return tabId;
+    if (g.id === tabId) return g.leaf || g.defaultTab;
+  }
+  return tabId;
+}
+
 // Leaf tabs that take full width (no Circe panel on the right)
 const FULL_WIDTH_LEAVES = new Set([
   "intelligence", "agents", "recommendations", "howItWorks", "categoryReset", "history", "brief", "pricing",
@@ -143,6 +153,9 @@ export default function App() {
   const [showRunModal, setShowRunModal] = useState(false);
   const [runStrategy, setRunStrategy]   = useState("balanced");
   const [brief, setBrief]           = useState(() => loadBrief());
+  const [retailer, setRetailer]     = useState("kroger");
+  const [category, setCategory]     = useState("Snacks");
+  const [navHidden, setNavHidden]   = useState(false);
 
   useEffect(() => {
     getState().then(s => setState({ ...s, season: getSeason(s.week) }));
@@ -180,8 +193,11 @@ export default function App() {
     return (
       <LandingPage
         onEnter={() => setShowLanding(false)}
-        onNavigate={(leafTab) => {
-          setTab(leafTab);
+        onNavigate={(leafTab, ret, cat, isolated) => {
+          if (ret) setRetailer(ret);
+          if (cat) setCategory(cat);
+          setTab(resolveLeafTab(leafTab));
+          setNavHidden(!!isolated);
           setShowLanding(false);
         }}
       />
@@ -209,9 +225,16 @@ export default function App() {
 
       {/* Top bar */}
       <div style={s.topBar}>
-        <div style={{ display: "flex", alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <CIrceLogo width={72} color="#e8a020" />
-          <span style={s.logoSub}>FY 2026 · {state.marketName} · Paper Goods</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            <span style={s.logoSub}>FY 2026 · {state.marketName} · Paper Goods</span>
+            {!navHidden && (
+              <span style={{ fontSize: 10, color: "#d4a24c", fontFamily: "monospace", letterSpacing: "0.04em" }}>
+                ⊞ {retailer.charAt(0).toUpperCase() + retailer.slice(1)} · {category}
+              </span>
+            )}
+          </div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {state.lastEvent && (
@@ -220,7 +243,7 @@ export default function App() {
             </span>
           )}
           <span style={{ fontSize: 11, color: "#8b949e" }}>{user}</span>
-          <button style={{ ...s.resetBtn, borderColor: "#d4a24c44", color: "#d4a24c" }} onClick={() => setShowLanding(true)}>⌂ Home</button>
+          <button style={{ ...s.resetBtn, borderColor: "#d4a24c44", color: "#d4a24c" }} onClick={() => { setNavHidden(false); setShowLanding(true); }}>⌂ Home</button>
           <button style={s.resetBtn} onClick={handleReset}>Reset</button>
           <button style={{ ...s.resetBtn, borderColor: "#f8514933", color: "#f85149" }}
             onClick={() => { localStorage.removeItem("circe_auth"); localStorage.removeItem("circe_user"); setAuthed(false); }}>
@@ -232,31 +255,46 @@ export default function App() {
       {/* KPI bar */}
       <KPIBar state={state} />
 
-      {/* Top-level group tabs */}
-      <div style={s.topTabs}>
-        {NAV_GROUPS.map(group => (
+      {/* Top-level group tabs — hidden in isolated mode */}
+      {!navHidden ? (
+        <>
+          <div style={s.topTabs}>
+            {NAV_GROUPS.map(group => (
+              <button
+                key={group.id}
+                style={{ ...s.topTab, ...(activeGroup === group.id ? s.topTabActive : {}) }}
+                onClick={() => handleTopTabClick(group)}
+              >
+                {group.label}
+              </button>
+            ))}
+          </div>
+          {/* Subtab bar — only shown when the active group has subtabs */}
+          {showSubTabs && (
+            <div style={s.subTabs}>
+              {activeGroupDef.subtabs.map(sub => (
+                <button
+                  key={sub.id}
+                  style={{ ...s.subTab, ...(tab === sub.id ? s.subTabActive : {}) }}
+                  onClick={() => setTab(sub.id)}
+                >
+                  {sub.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <div style={{ ...s.topTabs, padding: "0 16px", gap: 0 }}>
           <button
-            key={group.id}
-            style={{ ...s.topTab, ...(activeGroup === group.id ? s.topTabActive : {}) }}
-            onClick={() => handleTopTabClick(group)}
+            style={{ background: "none", border: "none", color: "#d4a24c", cursor: "pointer", fontSize: 12, padding: "8px 0", letterSpacing: "0.02em" }}
+            onClick={() => { setNavHidden(false); setShowLanding(true); }}
           >
-            {group.label}
+            ← Back to Home
           </button>
-        ))}
-      </div>
-
-      {/* Subtab bar — only shown when the active group has subtabs */}
-      {showSubTabs && (
-        <div style={s.subTabs}>
-          {activeGroupDef.subtabs.map(sub => (
-            <button
-              key={sub.id}
-              style={{ ...s.subTab, ...(tab === sub.id ? s.subTabActive : {}) }}
-              onClick={() => setTab(sub.id)}
-            >
-              {sub.label}
-            </button>
-          ))}
+          <span style={{ fontSize: 11, color: "#8b949e", marginLeft: 16, fontFamily: "monospace" }}>
+            {retailer.charAt(0).toUpperCase() + retailer.slice(1)} · {category} · Pricing &amp; Promo
+          </span>
         </div>
       )}
 
@@ -303,7 +341,7 @@ export default function App() {
           )}
 
           {/* Category AI Companion */}
-          {tab === "intelligence" && <ErrorBoundary><CategoryIntelligence /></ErrorBoundary>}
+          {tab === "intelligence" && <ErrorBoundary><CategoryIntelligence retailer={retailer} category={category} /></ErrorBoundary>}
 
           {/* Circe Agents */}
           {tab === "agents"          && <AgentPanel />}
@@ -312,7 +350,7 @@ export default function App() {
           {tab === "categoryReset"   && <CategoryResetPanel />}
 
           {/* Pricing & Promo Agent */}
-          {tab === "pricing" && <ErrorBoundary><PricingPromoAgent /></ErrorBoundary>}
+          {tab === "pricing" && <ErrorBoundary><PricingPromoAgent retailer={retailer} category={category} onBackHome={() => { setNavHidden(false); setShowLanding(true); }} /></ErrorBoundary>}
         </div>
 
         {showCirce && (

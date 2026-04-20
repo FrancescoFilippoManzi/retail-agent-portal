@@ -15,7 +15,9 @@ export default function LandingPage({ onNavigate, onEnter }) {
       if (e.data?.type === "circe-enter") {
         onEnter?.();
       } else if (e.data?.type === "circe-navigate" && e.data.tab) {
-        onNavigate(e.data.tab);
+        onNavigate(e.data.tab, e.data.retailer || null, e.data.category || null, false);
+      } else if (e.data?.type === "circe-navigate-isolated" && e.data.tab) {
+        onNavigate(e.data.tab, e.data.retailer || null, e.data.category || null, true);
       }
     }
     window.addEventListener("message", handleMessage);

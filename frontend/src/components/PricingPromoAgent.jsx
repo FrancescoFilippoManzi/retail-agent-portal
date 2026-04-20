@@ -940,9 +940,11 @@ function ObjectiveModal({ objectives, onSave, onClose }) {
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function PricingPromoAgent() {
-  const [retailer, setRetailer] = useState(RETAILERS[0]);
-  const [category, setCategory] = useState(CATEGORIES[2]);
+export default function PricingPromoAgent({ retailer: retailerProp, category: categoryProp, onBackHome }) {
+  const [retailer, setRetailer] = useState(
+    retailerProp ? (RETAILERS.find(r => r.tenant === retailerProp) || RETAILERS[0]) : RETAILERS[0]
+  );
+  const [category, setCategory] = useState(categoryProp || CATEGORIES[2]);
   const [objectives, setObjectives] = useState(null);
   const [segments, setSegments] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
@@ -1008,12 +1010,22 @@ export default function PricingPromoAgent() {
         {/* Header */}
         <div style={{ padding: "10px 14px", background: PANEL, borderBottom: `1px solid ${BORDER}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontSize: "1.05rem", color: BRIGHT, fontFamily: "Georgia, serif", letterSpacing: "0.02em" }}>
-                Pricing & Promo Intelligence
-              </div>
-              <div style={{ fontSize: "0.6rem", color: TEXT, marginTop: 2 }}>
-                {category} · {retailer.name} · W52 2025
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {onBackHome && (
+                <button
+                  onClick={onBackHome}
+                  style={{ background: "none", border: "none", color: TEXT, cursor: "pointer", fontSize: "0.65rem", padding: 0, letterSpacing: "0.02em" }}
+                >
+                  ← Home
+                </button>
+              )}
+              <div>
+                <div style={{ fontSize: "1.05rem", color: BRIGHT, fontFamily: "Georgia, serif", letterSpacing: "0.02em" }}>
+                  Pricing & Promo Intelligence
+                </div>
+                <div style={{ fontSize: "0.6rem", color: TEXT, marginTop: 2 }}>
+                  {category} · {retailer.name} · W52 2025
+                </div>
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1021,20 +1033,32 @@ export default function PricingPromoAgent() {
                 <div style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN, boxShadow: `0 0 6px ${GREEN}` }} />
                 <span style={{ fontSize: "0.58rem", color: GREEN }}>LIVE</span>
               </div>
-              <select
-                value={retailer.id}
-                onChange={(e) => setRetailer(RETAILERS.find((r) => r.id === parseInt(e.target.value)))}
-                style={{ padding: "3px 6px", background: BG, border: `1px solid ${BORDER}`, color: BRIGHT, borderRadius: 4, fontSize: "0.65rem" }}
-              >
-                {RETAILERS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                style={{ padding: "3px 6px", background: BG, border: `1px solid ${BORDER}`, color: BRIGHT, borderRadius: 4, fontSize: "0.65rem" }}
-              >
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+              {retailerProp ? (
+                <span style={{ fontSize: "0.65rem", color: ACCENT, fontFamily: "monospace", padding: "3px 8px", border: `1px solid ${BORDER}`, borderRadius: 4 }}>
+                  {retailer.name}
+                </span>
+              ) : (
+                <select
+                  value={retailer.id}
+                  onChange={(e) => setRetailer(RETAILERS.find((r) => r.id === parseInt(e.target.value)))}
+                  style={{ padding: "3px 6px", background: BG, border: `1px solid ${BORDER}`, color: BRIGHT, borderRadius: 4, fontSize: "0.65rem" }}
+                >
+                  {RETAILERS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              )}
+              {categoryProp ? (
+                <span style={{ fontSize: "0.65rem", color: ACCENT, fontFamily: "monospace", padding: "3px 8px", border: `1px solid ${BORDER}`, borderRadius: 4 }}>
+                  {category}
+                </span>
+              ) : (
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  style={{ padding: "3px 6px", background: BG, border: `1px solid ${BORDER}`, color: BRIGHT, borderRadius: 4, fontSize: "0.65rem" }}
+                >
+                  {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              )}
               <button
                 onClick={() => setShowObjectiveModal(true)}
                 style={{ background: "none", border: `1px solid ${BORDER}`, color: TEXT, padding: "3px 8px", borderRadius: 4, fontSize: "0.65rem", cursor: "pointer" }}
