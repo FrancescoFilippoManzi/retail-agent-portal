@@ -1000,7 +1000,7 @@ export default function CategoryIntelligence({ retailer: retailerProp, category:
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-              placeholder="Ask about your category — performance, pricing, strategy, alerts…"
+              placeholder="Ask Circe: explore, visualize, report, predict, decide"
               rows={1}
               style={{ flex: 1, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "0.65rem 0.9rem", color: BRIGHT, fontSize: "0.84rem", fontFamily: "'Georgia', serif", resize: "none", outline: "none", lineHeight: 1.55, minHeight: 40, maxHeight: 120, transition: "border-color 0.2s" }}
               onFocus={e => e.target.style.borderColor = ACCENT}
