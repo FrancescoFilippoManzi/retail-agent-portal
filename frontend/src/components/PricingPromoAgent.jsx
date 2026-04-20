@@ -702,7 +702,7 @@ function ChatPanel({ context }) {
         const updated = [...prev];
         updated[aiIdx] = {
           role: "assistant",
-          content: `Error: ${e.message}\n\nAdd your ANTHROPIC_API_KEY to the env and reload.`,
+          content: `Error: ${e.message}\n\nPlease try again. If the issue persists, check your network connection.`,
           streaming: false,
         };
         return updated;
