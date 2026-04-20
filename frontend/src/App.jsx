@@ -47,23 +47,17 @@ const NAV_GROUPS = [
     leaf: "intelligence",
   },
   {
+    id: "pricing",
+    label: "Pricing & Promo",
+    leaf: "pricing",
+  },
+  {
     id: "dashboard",
     label: "Category Dashboard",
     defaultTab: "brief",
     subtabs: [
       { id: "brief",  label: "Category Brief" },
       { id: "market", label: "Market Grid" },
-    ],
-  },
-  {
-    id: "agentsGroup",
-    label: "Circe Agents",
-    defaultTab: "agents",
-    subtabs: [
-      { id: "agents",          label: "Agents" },
-      { id: "recommendations", label: "Recommendations" },
-      { id: "howItWorks",      label: "How It Works" },
-      { id: "categoryReset",   label: "Category Reset" },
     ],
   },
   {
@@ -76,9 +70,15 @@ const NAV_GROUPS = [
     ],
   },
   {
-    id: "pricing",
-    label: "Pricing & Promo",
-    leaf: "pricing",
+    id: "agentsGroup",
+    label: "Circe Agents",
+    defaultTab: "agents",
+    subtabs: [
+      { id: "agents",          label: "Agents" },
+      { id: "recommendations", label: "Recommendations" },
+      { id: "howItWorks",      label: "How It Works" },
+      { id: "categoryReset",   label: "Category Reset" },
+    ],
   },
 ];
 
@@ -225,10 +225,7 @@ export default function App() {
 
       {/* Top bar */}
       <div style={s.topBar}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <CIrceLogo width={72} color="#e8a020" />
-          <span style={s.logoSub}>FY 2026 · {state.marketName} · Paper Goods</span>
-        </div>
+        <CIrceLogo width={72} color="#e8a020" />
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {state.lastEvent && (
             <span style={{ fontSize: 11, color: "#e3b341", background: "#1f1a0a", padding: "3px 10px", borderRadius: 12, border: "1px solid #9e6a03" }}>
@@ -245,8 +242,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* KPI bar — simulation tabs only */}
-      {["brief", "market", "actions", "history"].includes(tab) && <KPIBar state={state} />}
 
       {/* Top-level group tabs — hidden in isolated mode */}
       {!navHidden ? (
@@ -278,17 +273,33 @@ export default function App() {
           )}
         </>
       ) : (
-        <div style={{ ...s.topTabs, padding: "0 16px", gap: 0 }}>
-          <button
-            style={{ background: "none", border: "none", color: "#d4a24c", cursor: "pointer", fontSize: 12, padding: "8px 0", letterSpacing: "0.02em" }}
-            onClick={() => { setNavHidden(false); setShowLanding(true); }}
-          >
-            ← Back to Home
-          </button>
-          <span style={{ fontSize: 11, color: "#8b949e", marginLeft: 16, fontFamily: "monospace" }}>
-            {retailer.charAt(0).toUpperCase() + retailer.slice(1)} · {category} · Pricing &amp; Promo
-          </span>
-        </div>
+        <>
+          <div style={{ ...s.topTabs, padding: "0 16px", gap: 0 }}>
+            <button
+              style={{ background: "none", border: "none", color: "#d4a24c", cursor: "pointer", fontSize: 12, padding: "8px 0", letterSpacing: "0.02em" }}
+              onClick={() => { setNavHidden(false); setShowLanding(true); }}
+            >
+              ← Back to Home
+            </button>
+            <span style={{ fontSize: 11, color: "#8b949e", marginLeft: 16, fontFamily: "monospace" }}>
+              {retailer.charAt(0).toUpperCase() + retailer.slice(1)} · {category} · {activeGroupDef?.label || ""}
+            </span>
+          </div>
+          {/* Subtabs still visible in isolated mode (e.g. dashboard isolation) */}
+          {showSubTabs && (
+            <div style={s.subTabs}>
+              {activeGroupDef.subtabs.map(sub => (
+                <button
+                  key={sub.id}
+                  style={{ ...s.subTab, ...(tab === sub.id ? s.subTabActive : {}) }}
+                  onClick={() => setTab(sub.id)}
+                >
+                  {sub.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Context reminder bar — below nav, above content */}

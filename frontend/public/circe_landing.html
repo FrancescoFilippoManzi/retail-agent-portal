@@ -1008,9 +1008,9 @@ document.querySelectorAll('.tile').forEach(tile => {
   });
 });
 
-// Dashboard button
+// Dashboard button — isolated mode (shows only Brief/Market subtabs)
 document.getElementById('dashboard-btn').addEventListener('click', () => {
-  postNav('dashboard', false);
+  postNav('dashboard', true);
 });
 
 // ═══ CHAT — same backend as Category AI Companion ═════════════════

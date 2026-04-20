@@ -581,12 +581,6 @@ function DataPanel({ topic, isTransitioning, topicData, dailyData, apiLoading, a
   return (
     <div style={s.wrap}>
       {top}
-      <KpiRow items={[
-        { label: "Total Revenue",  value: fmtMoney(tk.total_revenue),     delta: "2024-2025",   up: true },
-        { label: "Transactions",   value: fmtNum(tk.total_transactions),   delta: "this period", up: true },
-        { label: "Avg Basket",     value: tk.avg_basket ? `$${tk.avg_basket}` : "-", delta: "per visit", up: true },
-        { label: "Gross Margin",   value: fmtPct(d.gross_margin_pct),     delta: "blended avg", up: true },
-      ]} />
       <div style={{ ...s.card, flex: 1 }}>
         <div style={s.lbl}>Weekly Revenue Trend (last 52 weeks)</div>
         <ResponsiveContainer width="100%" height={150}>
