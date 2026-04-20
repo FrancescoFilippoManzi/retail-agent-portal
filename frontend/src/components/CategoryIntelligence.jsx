@@ -1,7 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { LineChart, Line, BarChart, Bar, AreaChart, Area, ScatterChart, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis } from "recharts";
 
-const API_BASE = "/api/intelligence";
+const IS_LOCAL = typeof window !== "undefined" && window.location.hostname === "localhost";
+// Local: call CI server directly (bypasses Vite proxy which has no CI server locally)
+// Production: use relative path routed via Vercel rewrites
+const API_BASE = IS_LOCAL
+  ? "https://87-99-154-201.nip.io/api"
+  : "/api/ci";
+const CHAT_URL = IS_LOCAL
+  ? "https://87-99-154-201.nip.io/api/chat"
+  : "/api/ci/chat";
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 function fmtMoney(n) {
@@ -16,50 +24,59 @@ function fmtPct(n) { return n != null ? `${Number(n).toFixed(1)}%` : "-"; }
 // ── Topic detection (fallback when API topic is absent) ───────────────────────
 function detectTopic(text) {
   const t = text.toLowerCase();
-  if (/yesterday|today|daily|this morning|last night|day.*sales|sales.*day/.test(t)) return "daily";
-  if (/oos|out.of.stock|stockout|supply/.test(t)) return "oos";
+  if (/oos|out.of.stock|stockout|supply|availability/.test(t)) return "oos";
   if (/pric|gap|elasticity|nb.*pl|pl.*nb/.test(t)) return "pricing";
-  if (/promo|promotion|roi|bogo|deal|lift|tpr/.test(t)) return "promotions";
-  if (/assort|sku|range|listing|delist/.test(t)) return "assortment";
-  if (/compet|index|rival|market share|aldi|walmart|target/.test(t)) return "competitive";
-  if (/planogram|pog|reset|compliance|facing|shelf/.test(t)) return "planogram";
+  if (/promo|promotion|roi|bogo|deal|lift|tpr|discount/.test(t)) return "promo";
+  if (/assort|sku|range|listing|delist|catalog/.test(t)) return "assortment";
   if (/revenue|sales|trend|basket|performance|week|growth/.test(t)) return "revenue";
   return null;
 }
 
+// ── Retailer config ────────────────────────────────────────────────────────────
+const RETAILERS = [
+  { id: "kroger",  label: "Kroger",  color: "#3b82f6" },
+  { id: "publix",  label: "Publix",  color: "#22c55e" },
+  { id: "walmart", label: "Walmart", color: "#f59e0b" },
+  { id: "target",  label: "Target",  color: "#ef4444" },
+  { id: "costco",  label: "Costco",  color: "#a855f7" },
+  { id: "admin",   label: "Admin",   color: "#38bdf8" },
+];
+
 // ── Claude API (streaming — right panel unchanged) ────────────────────────────
-async function askClaude(messages, onChunk, dailySnap, dataSummary) {
+async function askClaude(messages, onChunk, dailySnap, dataSummary, tenantId) {
   const d = dailySnap || {};
-  const system = `You are an expert Category Management AI for Kroger. You have live data from the Category Intelligence API.
+  const retailerName = tenantId === "admin" ? "All Retailers (Orlando MSA)" : (tenantId || "kroger").charAt(0).toUpperCase() + (tenantId || "kroger").slice(1);
+  const system = `You are an expert Category Management AI for the Circe Category Intelligence platform, serving ${retailerName}. You have live data covering Orlando MSA, 2024-2025 across 5 retailers (Kroger, Publix, Walmart, Target, Costco) and 5 categories: Beverages, Dairy & Eggs, Frozen Pizza, Paper & Cleaning, Snacks.
 
-Current snapshot (${d.date || "Dec 31, 2025"}):
-- Revenue: ${fmtMoney(d.total_revenue)} | Transactions: ${fmtNum(d.total_transactions)} | Avg basket: $${d.avg_basket || "61.65"}
+Current snapshot (${d.date || "Dec 30, 2025"}):
+- Revenue: ${fmtMoney(d.total_revenue)} | Transactions: ${fmtNum(d.total_transactions)} | Avg basket: $${d.avg_basket || "37.00"}
 - PL penetration: ${fmtPct(d.pl_penetration_pct)} | Gross margin: ${fmtPct(d.gross_margin_pct)}
-- OOS rate: ${fmtPct(d.oos_rate_pct)} | Top category: ${d.top_category ? `${d.top_category.category} (${fmtMoney(d.top_category.revenue)})` : "Meat & Seafood"}
+- OOS rate: ${fmtPct(d.oos_rate_pct)} | Top category: ${d.top_category ? `${d.top_category.category} (${fmtMoney(d.top_category.revenue)})` : "Paper & Cleaning"}
 
-Be sharp, specific, and data-grounded. Use **bold** for key numbers. Keep responses focused — 3-5 sentences plus a "→ Next:" line. The left panel updates to show relevant charts as you answer — reference what the user can see there.
+Be sharp, specific, and data-grounded. Use **bold** for key numbers. Keep responses focused — 3-5 sentences plus a "→ Next:" line. The left panel updates to show relevant charts.
 
-IMPORTANT — data availability rules:
-- The database has exactly 11 categories: Beverages, Dairy & Eggs, Deli & Prepared, Floral, Frozen, HBC, Household, Meat & Seafood, Packaged & Dry, Pet, Produce.
-- "Paper" is NOT a category — paper products live under Household > Paper Products subcategory.
-- All data covers December 2025 only (2025-12-01 to 2025-12-31). "Yesterday" = Dec 31 2025.
-- When a user mentions "paper", "cleaning", "laundry", "trash bags" → these are subcategories within Household. Say so explicitly.
+IMPORTANT — data availability:
+- 5 categories ONLY: Beverages, Dairy & Eggs, Frozen Pizza, Paper & Cleaning, Snacks
+- Data covers 2024-01-01 to 2025-12-30 (2 years, Orlando MSA)
+- "Yesterday" = Dec 30, 2025
+- Super Bowl Sunday 2025 = Feb 9, 2025 | Super Bowl Sunday 2024 = Feb 11, 2024
+- For admin tenant: cross-retailer comparisons are available (all 5 retailers)
 ${dataSummary ? `
 ━━━ ACTUAL DATA RETRIEVED FROM DATABASE ━━━
 ${dataSummary}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-RESPONSE INSTRUCTIONS (follow exactly when data is present above):
-- Answer using the EXACT numbers from the data above — do not estimate or paraphrase.
-- Lead with the headline figure (e.g. "Sales on Dec 21 were **$287,432**").
-- Call out the top and bottom performers by name with their specific values.
-- Give 1-2 sentences of strategic interpretation (what does this mean for the category?).
-- End with a "→ Next:" action suggestion as usual.
+RESPONSE INSTRUCTIONS:
+- Answer using the EXACT numbers from the data above — do not estimate.
+- Lead with the headline figure.
+- Call out top/bottom performers with specific values.
+- Give 1-2 sentences of strategic interpretation.
+- End with a "→ Next:" action suggestion.
 - Never say you lack data — it is provided above.` : `
-- If the user asks for specific data, answer based on what you know from the snapshot above.
-- NEVER say data is unavailable — all December 2025 data exists.`}`;
+- Answer based on the snapshot above.
+- NEVER say data is unavailable — 2 years of Orlando MSA data exists.`}`;
 
-  const resp = await fetch("/api/intelligence/chat", {
+  const resp = await fetch(CHAT_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ messages, system }),
@@ -289,53 +306,6 @@ function DataPanel({ topic, isTransitioning, topicData, dailyData, apiLoading, a
     </>
   );
 
-  // ── Daily ──────────────────────────────────────────────────────────────────
-  if (topic === "daily") {
-    const d = dailyData || {};
-    const td = topicData || {};
-    return (
-      <div style={s.wrap}>
-        {top}
-        <div style={{ fontFamily: "monospace", fontSize: "0.6rem", color: ACCENT, letterSpacing: "0.12em", textTransform: "uppercase" }}>
-          Daily Report · {d.date || "Dec 31, 2025"}
-        </div>
-        <KpiRow items={[
-          { label: "Total Revenue",   value: fmtMoney(d.total_revenue),       delta: d.date || "-",         up: true },
-          { label: "Transactions",    value: fmtNum(d.total_transactions),     delta: "orders",              up: true },
-          { label: "Avg Basket",      value: d.avg_basket ? `$${d.avg_basket}` : "-", delta: "per visit",   up: true },
-          { label: "PL Penetration",  value: fmtPct(d.pl_penetration_pct),    delta: "of revenue",          up: true },
-        ]} />
-        <div style={{ ...s.card, flex: 1 }}>
-          <div style={s.lbl}>Hourly Revenue · {d.date || "Dec 31"}</div>
-          <ResponsiveContainer width="100%" height={140}>
-            <AreaChart data={td.hourly || []}>
-              <defs>
-                <linearGradient id="gDay" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={ACCENT} stopOpacity={0.35} /><stop offset="95%" stopColor={ACCENT} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="hour" tick={{ fontSize: 8, fill: TEXT, fontFamily: "monospace" }} axisLine={false} tickLine={false} tickFormatter={h => `${h}h`} />
-              <YAxis tick={{ fontSize: 8, fill: TEXT }} axisLine={false} tickLine={false} />
-              <Tooltip content={<Tip />} />
-              <Area type="monotone" dataKey="revenue" stroke={ACCENT} strokeWidth={2} fill="url(#gDay)" name="Revenue $" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-        <div style={s.card}>
-          <div style={s.lbl}>Revenue by Department</div>
-          <ResponsiveContainer width="100%" height={110}>
-            <BarChart data={td.by_dept || []} margin={{ left: -22 }}>
-              <XAxis dataKey="category" tick={{ fontSize: 8, fill: TEXT, fontFamily: "monospace" }} axisLine={false} tickLine={false} tickFormatter={v => v.split(" ")[0]} />
-              <YAxis tick={{ fontSize: 8, fill: TEXT }} axisLine={false} tickLine={false} />
-              <Tooltip content={<Tip />} />
-              <Bar dataKey="revenue" radius={[3, 3, 0, 0]} name="Revenue $" fill={ACCENT} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    );
-  }
-
   // ── OOS ────────────────────────────────────────────────────────────────────
   if (topic === "oos") {
     const tk = topicData?.kpis || {};
@@ -358,7 +328,7 @@ function DataPanel({ topic, isTransitioning, topicData, dailyData, apiLoading, a
               <defs>
                 <linearGradient id="gWarn" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={WARN} stopOpacity={0.3} /><stop offset="95%" stopColor={WARN} stopOpacity={0} /></linearGradient>
               </defs>
-              <XAxis dataKey="date_id" tick={{ fontSize: 9, fill: TEXT, fontFamily: "monospace" }} axisLine={false} tickLine={false} tickFormatter={d => d.slice(5)} />
+              <XAxis dataKey="week_id" tick={{ fontSize: 9, fill: TEXT, fontFamily: "monospace" }} axisLine={false} tickLine={false} tickFormatter={d => d.slice(5)} />
               <YAxis tick={{ fontSize: 9, fill: TEXT }} axisLine={false} tickLine={false} />
               <Tooltip content={<Tip />} />
               <Area type="monotone" dataKey="oos_pct" stroke={WARN} strokeWidth={2} fill="url(#gWarn)" name="OOS %" />
@@ -410,14 +380,15 @@ function DataPanel({ topic, isTransitioning, topicData, dailyData, apiLoading, a
           </ResponsiveContainer>
         </div>
         <div style={s.card}>
-          <div style={s.lbl}>Price vs Units — Elasticity Proxy</div>
+          <div style={s.lbl}>PL vs NB Avg Price by Category</div>
           <ResponsiveContainer width="100%" height={100}>
-            <ScatterChart margin={{ left: -20, right: 10 }}>
-              <XAxis dataKey="avg_price" name="Avg Price $" tick={{ fontSize: 8, fill: TEXT }} axisLine={false} tickLine={false} tickFormatter={v => `$${v}`} />
-              <YAxis dataKey="total_units" name="Units" tick={{ fontSize: 8, fill: TEXT }} axisLine={false} tickLine={false} />
-              <Tooltip cursor={{ strokeDasharray: "3 3" }} content={<Tip />} />
-              <Scatter data={elasticity} fill={PURPLE} name="Category" />
-            </ScatterChart>
+            <BarChart data={topicData?.pl_nb_price || []} margin={{ left: -20 }}>
+              <XAxis dataKey="category" tick={{ fontSize: 7, fill: TEXT, fontFamily: "monospace" }} axisLine={false} tickLine={false} tickFormatter={v => v.split(" ")[0]} />
+              <YAxis tick={{ fontSize: 7, fill: TEXT }} axisLine={false} tickLine={false} tickFormatter={v => `$${v}`} />
+              <Tooltip content={<Tip />} />
+              <Bar dataKey="pl_avg_price" fill={GOLD} name="PL $" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="nb_avg_price" fill={ACCENT} name="NB $" radius={[3, 3, 0, 0]} />
+            </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
@@ -425,7 +396,7 @@ function DataPanel({ topic, isTransitioning, topicData, dailyData, apiLoading, a
   }
 
   // ── Promotions ─────────────────────────────────────────────────────────────
-  if (topic === "promotions") {
+  if (topic === "promo" || topic === "promotions") {
     const tk = topicData?.kpis || {};
     const roi = [...(topicData?.roi || [])].sort((a, b) => (b.promo_revenue || 0) - (a.promo_revenue || 0));
     const weekly = topicData?.weekly || [];
@@ -453,10 +424,10 @@ function DataPanel({ topic, isTransitioning, topicData, dailyData, apiLoading, a
           </ResponsiveContainer>
         </div>
         <div style={s.card}>
-          <div style={s.lbl}>Daily Promo Revenue % (Dec 2025)</div>
+          <div style={s.lbl}>Weekly Promo Revenue %</div>
           <ResponsiveContainer width="100%" height={90}>
             <AreaChart data={weekly} margin={{ left: -25 }}>
-              <XAxis dataKey="date_id" tick={{ fontSize: 8, fill: TEXT, fontFamily: "monospace" }} axisLine={false} tickLine={false} tickFormatter={d => d.slice(8)} />
+              <XAxis dataKey="week_id" tick={{ fontSize: 8, fill: TEXT, fontFamily: "monospace" }} axisLine={false} tickLine={false} tickFormatter={d => d.slice(5)} />
               <YAxis tick={{ fontSize: 8, fill: TEXT }} axisLine={false} tickLine={false} />
               <Tooltip content={<Tip />} />
               <Area type="monotone" dataKey="promo_pct" stroke={GOLD} fill={GOLD} fillOpacity={0.35} name="Promo %" />
@@ -517,7 +488,7 @@ function DataPanel({ topic, isTransitioning, topicData, dailyData, apiLoading, a
     );
   }
 
-  // ── Competitive ────────────────────────────────────────────────────────────
+  // ── Competitive (legacy - redirect to revenue) ────────────────────────────
   if (topic === "competitive") {
     const tk = topicData?.kpis || {};
     const index = [...(topicData?.index || [])].sort((a, b) => (b.market_units || 0) - (a.market_units || 0));
@@ -604,18 +575,20 @@ function DataPanel({ topic, isTransitioning, topicData, dailyData, apiLoading, a
   // ── Revenue / Default ──────────────────────────────────────────────────────
   const tk = topicData?.kpis || {};
   const weekly = topicData?.weekly || [];
+  const byCat = topicData?.by_category || [];
   const d = dailyData || {};
+  const wowTrend = d.wow_trend || [];
   return (
     <div style={s.wrap}>
       {top}
       <KpiRow items={[
-        { label: "Total Revenue",  value: fmtMoney(tk.total_revenue),     delta: "Dec 2025",    up: true },
+        { label: "Total Revenue",  value: fmtMoney(tk.total_revenue),     delta: "2024-2025",   up: true },
         { label: "Transactions",   value: fmtNum(tk.total_transactions),   delta: "this period", up: true },
         { label: "Avg Basket",     value: tk.avg_basket ? `$${tk.avg_basket}` : "-", delta: "per visit", up: true },
         { label: "Gross Margin",   value: fmtPct(d.gross_margin_pct),     delta: "blended avg", up: true },
       ]} />
       <div style={{ ...s.card, flex: 1 }}>
-        <div style={s.lbl}>Daily Revenue Trend (Dec 2025)</div>
+        <div style={s.lbl}>Weekly Revenue Trend (last 52 weeks)</div>
         <ResponsiveContainer width="100%" height={150}>
           <AreaChart data={weekly}>
             <defs>
@@ -623,7 +596,7 @@ function DataPanel({ topic, isTransitioning, topicData, dailyData, apiLoading, a
                 <stop offset="5%" stopColor={ACCENT} stopOpacity={0.3} /><stop offset="95%" stopColor={ACCENT} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <XAxis dataKey="date_id" tick={{ fontSize: 9, fill: TEXT, fontFamily: "monospace" }} axisLine={false} tickLine={false} tickFormatter={v => v.slice(5)} />
+            <XAxis dataKey="week_id" tick={{ fontSize: 9, fill: TEXT, fontFamily: "monospace" }} axisLine={false} tickLine={false} tickFormatter={v => v.slice(5)} />
             <YAxis tick={{ fontSize: 9, fill: TEXT }} axisLine={false} tickLine={false} />
             <Tooltip content={<Tip />} />
             <Area type="monotone" dataKey="revenue" stroke={ACCENT} strokeWidth={2} fill="url(#gRev)" name="Revenue $" />
@@ -636,7 +609,7 @@ function DataPanel({ topic, isTransitioning, topicData, dailyData, apiLoading, a
           {d.top_category && [
             { name: "Top: " + d.top_category.category,    val: fmtMoney(d.top_category.revenue),    color: GREEN },
             { name: "Bottom: " + (d.bottom_category?.category || "-"), val: fmtMoney(d.bottom_category?.revenue), color: WARN },
-            { name: "OOS Rate",        val: fmtPct(d.oos_rate_pct),        color: (d.oos_rate_pct || 0) < 1 ? GREEN : WARN },
+            { name: "OOS Rate",        val: fmtPct(d.oos_rate_pct),        color: (d.oos_rate_pct || 0) < 5 ? GREEN : WARN },
             { name: "PL Penetration",  val: fmtPct(d.pl_penetration_pct),  color: GOLD },
           ].map((item, i) => (
             <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.73rem", marginBottom: "0.25rem" }}>
@@ -646,15 +619,11 @@ function DataPanel({ topic, isTransitioning, topicData, dailyData, apiLoading, a
           ))}
         </div>
         <div style={s.card}>
-          <div style={s.lbl}>Key Metrics</div>
-          {[
-            { name: "Avg Basket",      val: d.avg_basket ? `$${d.avg_basket}` : "-",  color: ACCENT },
-            { name: "Gross Margin",    val: fmtPct(d.gross_margin_pct),               color: GREEN },
-            { name: "Transactions",    val: fmtNum(d.total_transactions),             color: TEXT },
-          ].map((item, i) => (
+          <div style={s.lbl}>Category Breakdown</div>
+          {byCat.slice(0, 5).map((cat, i) => (
             <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.73rem", marginBottom: "0.25rem" }}>
-              <span style={{ color: TEXT }}>{item.name}</span>
-              <span style={{ fontFamily: "monospace", color: item.color, fontWeight: 600 }}>{item.val}</span>
+              <span style={{ color: TEXT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "65%" }}>{cat.category}</span>
+              <span style={{ fontFamily: "monospace", color: ACCENT, fontWeight: 600, flexShrink: 0 }}>{fmtMoney(cat.revenue)}</span>
             </div>
           ))}
         </div>
@@ -665,17 +634,29 @@ function DataPanel({ topic, isTransitioning, topicData, dailyData, apiLoading, a
 
 // ── Topic labels + suggestions ─────────────────────────────────────────────────
 const TOPIC_LABELS = {
-  daily: "Yesterday's Performance", oos: "Out-of-Stock Analysis",
-  pricing: "Pricing & Elasticity", promotions: "Promotion Performance",
-  assortment: "Assortment Intelligence", competitive: "Competitive Intelligence",
-  planogram: "Planogram Compliance", revenue: "Revenue & Trend",
+  revenue:    "Revenue & Trend",
+  oos:        "Out-of-Stock Analysis",
+  pricing:    "Pricing Intelligence",
+  promo:      "Promotion Performance",
+  assortment: "Assortment Intelligence",
 };
 
-const SUGG = [
-  "What was sales performance yesterday?", "Which categories have the highest OOS rate?",
-  "What's our price gap vs market?", "Which promotions drove the most revenue?",
-  "Summarize this month's performance", "What is our PL penetration by category?",
-  "How does Kroger compare to the market on PL share?",
+const SUGG_DEFAULT = [
+  "What was revenue yesterday?",
+  "Which categories have the highest OOS rate?",
+  "What is our PL penetration by category?",
+  "Which promotions drove the most revenue?",
+  "Show me Frozen Pizza weekly trend",
+  "What is our price gap vs market?",
+];
+
+const SUGG_ADMIN = [
+  "Compare PL penetration across all retailers",
+  "Which retailer has highest gross margin?",
+  "What were Walmart Beverage sales last week?",
+  "Compare Frozen Pizza sales Super Bowl 2024 vs 2025",
+  "What was revenue yesterday for Publix?",
+  "Show PL share trend for all retailers",
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -691,7 +672,8 @@ export default function CategoryIntelligence() {
   const [apiLoading, setApiLoading] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [queryResult, setQueryResult] = useState(null);
-  const [feedbackGiven, setFeedbackGiven] = useState({}); // {msgIndex: 'up'|'down'}
+  const [feedbackGiven, setFeedbackGiven] = useState({});
+  const [tenantId, setTenantId] = useState("kroger");
   const bottomRef = useRef(null);
   const taRef = useRef(null);
 
@@ -700,16 +682,19 @@ export default function CategoryIntelligence() {
   const GREEN = "#34d399"; const WARN = "#f87171";
   const GOLD = "#fbbf24"; const PURPLE = "#a78bfa";
 
+  const currentRetailer = RETAILERS.find(r => r.id === tenantId) || RETAILERS[0];
+  const SUGG = tenantId === "admin" ? SUGG_ADMIN : SUGG_DEFAULT;
+
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, stream]);
 
-  // ── On mount: load daily KPIs + revenue topic ──────────────────────────────
+  // ── On mount + tenant change: load daily KPIs + revenue topic ─────────────
   useEffect(() => {
     const init = async () => {
       setApiLoading(true);
       try {
         const [dr, tr] = await Promise.all([
-          fetch(`${API_BASE}/daily`).then(r => r.json()),
-          fetch(`${API_BASE}/topic/revenue`).then(r => r.json()),
+          fetch(`${API_BASE}/daily/${tenantId}`).then(r => r.json()),
+          fetch(`${API_BASE}/topic/${tenantId}/revenue`).then(r => r.json()),
         ]);
         if (dr.detail) throw new Error(dr.detail);
         if (tr.detail) throw new Error(tr.detail);
@@ -722,14 +707,15 @@ export default function CategoryIntelligence() {
       }
     };
     init();
-  }, []);
+  }, [tenantId]);
 
   // ── Fetch topic data ───────────────────────────────────────────────────────
-  const fetchTopicData = useCallback(async (t) => {
+  const fetchTopicData = useCallback(async (t, tid) => {
+    const tenant = tid || tenantId;
     setApiLoading(true);
     setApiError(null);
     try {
-      const res = await fetch(`${API_BASE}/topic/${t}`).then(r => r.json());
+      const res = await fetch(`${API_BASE}/topic/${tenant}/${t}`).then(r => r.json());
       if (res.detail) throw new Error(res.detail);
       setTopicData(res);
     } catch (e) {
@@ -737,6 +723,16 @@ export default function CategoryIntelligence() {
     } finally {
       setApiLoading(false);
     }
+  }, [tenantId]);
+
+  // ── Handle tenant change ───────────────────────────────────────────────────
+  const changeTenant = useCallback((newTenant) => {
+    setTenantId(newTenant);
+    setMsgs([]);
+    setStream("");
+    setQueryResult(null);
+    setFeedbackGiven({});
+    setTopic("revenue");
   }, []);
 
   // ── Switch topic with fade ─────────────────────────────────────────────────
@@ -745,6 +741,9 @@ export default function CategoryIntelligence() {
     setTimeout(() => { setTopic(newTopic); setTransitioning(false); }, 320);
     if (alsoFetch) fetchTopicData(newTopic);
   }, [fetchTopicData]);
+
+  // Topic buttons — only valid topics for new DB
+  const TOPIC_BUTTONS = ["revenue", "oos", "pricing", "promo", "assortment"];
 
   // ── Send message ───────────────────────────────────────────────────────────
   const send = useCallback(async (text) => {
@@ -769,7 +768,7 @@ export default function CategoryIntelligence() {
       const qResult = await fetch(`${API_BASE}/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q, tenant_id: "kroger" }),
+        body: JSON.stringify({ question: q, tenant_id: tenantId }),
       }).then(r => r.json());
 
       // Show result on left panel
@@ -801,6 +800,7 @@ export default function CategoryIntelligence() {
         chunk => setStream(chunk),
         dailyData,
         dataSummary,
+        tenantId,
       );
       setMsgs([...history, { role: "assistant", content: answer }]);
       setStream("");
@@ -811,7 +811,7 @@ export default function CategoryIntelligence() {
       setLoading(false);
       taRef.current?.focus();
     }
-  }, [input, loading, msgs, switchTopic, fetchTopicData, dailyData]);
+  }, [input, loading, msgs, switchTopic, fetchTopicData, dailyData, tenantId]);
 
   // ── Feedback (thumbs up / down under each AI message) ──────────────────────
   const callFeedback = useCallback(async (msgIndex, wasHelpful) => {
@@ -823,7 +823,7 @@ export default function CategoryIntelligence() {
       await fetch(`${API_BASE}/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, sql: null, was_helpful: wasHelpful, correction: null, tenant_id: "kroger" }),
+        body: JSON.stringify({ question, sql: null, was_helpful: wasHelpful, correction: null, tenant_id: tenantId }),
       });
     } catch {} // fire-and-forget
   }, [msgs, feedbackGiven]);
@@ -842,7 +842,9 @@ export default function CategoryIntelligence() {
       <div style={{ width: "52%", borderRight: `1px solid ${BORDER}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <div style={{ padding: "0.85rem 1.3rem", borderBottom: `1px solid ${BORDER}`, background: PANEL, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
           <div>
-            <div style={{ fontFamily: "monospace", fontSize: "0.58rem", color: ACCENT, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: "0.15rem" }}>Kroger · Live Analytics</div>
+            <div style={{ fontFamily: "monospace", fontSize: "0.58rem", color: currentRetailer.color, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: "0.15rem" }}>
+              {currentRetailer.label} · Orlando MSA
+            </div>
             <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.1rem", color: BRIGHT, fontWeight: 700 }}>
               {TOPIC_LABELS[topic] || "Category Intelligence"}
             </div>
@@ -850,7 +852,7 @@ export default function CategoryIntelligence() {
           <div style={{ textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.3rem" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: apiLoading ? GOLD : GREEN, boxShadow: `0 0 7px ${apiLoading ? GOLD : GREEN}`, animation: "pulse 2s infinite", flexShrink: 0 }} />
-              <span style={{ fontFamily: "monospace", fontSize: "0.6rem", color: apiLoading ? GOLD : GREEN }}>{apiLoading ? "LOADING…" : "LIVE · DEC 2025"}</span>
+              <span style={{ fontFamily: "monospace", fontSize: "0.6rem", color: apiLoading ? GOLD : GREEN }}>{apiLoading ? "LOADING…" : "LIVE · 2024-2025"}</span>
             </div>
             {topic && (
               <div style={{ fontFamily: "monospace", fontSize: "0.58rem", color: ACCENT, background: "rgba(56,189,248,0.08)", border: "1px solid rgba(56,189,248,0.2)", borderRadius: 4, padding: "2px 7px", animation: "slideIn 0.3s ease" }}>
@@ -858,6 +860,15 @@ export default function CategoryIntelligence() {
               </div>
             )}
           </div>
+        </div>
+        {/* Topic navigation tabs */}
+        <div style={{ display: "flex", gap: "0.3rem", padding: "0.5rem 1.3rem 0", background: PANEL, borderBottom: `1px solid ${BORDER}`, flexShrink: 0 }}>
+          {TOPIC_BUTTONS.map(t => (
+            <button key={t} onClick={() => switchTopic(t)}
+              style={{ background: topic === t ? "rgba(56,189,248,0.12)" : "none", border: `1px solid ${topic === t ? "rgba(56,189,248,0.4)" : "transparent"}`, color: topic === t ? ACCENT : TEXT, borderRadius: "4px 4px 0 0", padding: "0.25rem 0.6rem", cursor: "pointer", fontFamily: "monospace", fontSize: "0.58rem", textTransform: "uppercase", letterSpacing: "0.08em", transition: "all 0.15s" }}>
+              {t}
+            </button>
+          ))}
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "0.9rem 1.3rem" }}>
           <DataPanel
@@ -878,10 +889,33 @@ export default function CategoryIntelligence() {
       <div style={{ width: "48%", display: "flex", flexDirection: "column", background: PANEL }}>
         <div style={{ padding: "0.85rem 1.3rem", borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
           <div>
-            <div style={{ fontFamily: "monospace", fontSize: "0.58rem", color: ACCENT, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "0.15rem" }}>AI Assistant</div>
+            <div style={{ fontFamily: "monospace", fontSize: "0.58rem", color: ACCENT, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "0.15rem" }}>AI Assistant · Circe Platform</div>
             <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.05rem", color: BRIGHT, fontWeight: 600 }}>Category Manager Chat</div>
           </div>
           <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+            {/* Tenant / Retailer Selector */}
+            <div style={{ display: "flex", gap: "0.2rem", alignItems: "center" }}>
+              {RETAILERS.map(r => (
+                <button key={r.id} onClick={() => changeTenant(r.id)}
+                  title={r.label}
+                  style={{
+                    background: tenantId === r.id ? `${r.color}20` : "none",
+                    border: `1px solid ${tenantId === r.id ? r.color : BORDER}`,
+                    color: tenantId === r.id ? r.color : TEXT,
+                    borderRadius: 4,
+                    padding: "0.18rem 0.45rem",
+                    cursor: "pointer",
+                    fontFamily: "monospace",
+                    fontSize: "0.55rem",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    transition: "all 0.15s",
+                    fontWeight: tenantId === r.id ? 700 : 400,
+                  }}>
+                  {r.label}
+                </button>
+              ))}
+            </div>
             {msgs.length > 0 && (
               <button onClick={() => { setMsgs([]); setStream(""); setTopic("revenue"); setQueryResult(null); setFeedbackGiven({}); fetchTopicData("revenue"); }}
                 style={{ background: "none", border: `1px solid ${BORDER}`, color: TEXT, borderRadius: 6, padding: "0.22rem 0.65rem", cursor: "pointer", fontFamily: "monospace", fontSize: "0.62rem" }}>
@@ -903,12 +937,12 @@ export default function CategoryIntelligence() {
               <div style={{ fontSize: "0.76rem", color: TEXT, maxWidth: 300, lineHeight: 1.7 }}>
                 Ask a question — the data panel on the left will update with live charts and KPIs from the API.
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", justifyContent: "center", maxWidth: 360 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", justifyContent: "center", maxWidth: 380 }}>
                 {SUGG.map((s, i) => (
                   <button key={i} onClick={() => send(s)}
-                    style={{ background: BG, border: `1px solid ${BORDER}`, color: TEXT, borderRadius: 20, padding: "0.32rem 0.8rem", cursor: "pointer", fontFamily: "monospace", fontSize: "0.67rem", transition: "all 0.15s" }}
+                    style={{ background: BG, border: `1px solid ${tenantId === "admin" ? "rgba(56,189,248,0.3)" : BORDER}`, color: tenantId === "admin" ? ACCENT : TEXT, borderRadius: 20, padding: "0.32rem 0.8rem", cursor: "pointer", fontFamily: "monospace", fontSize: "0.67rem", transition: "all 0.15s" }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = ACCENT; e.currentTarget.style.color = ACCENT; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.color = TEXT; }}>
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = tenantId === "admin" ? "rgba(56,189,248,0.3)" : BORDER; e.currentTarget.style.color = tenantId === "admin" ? ACCENT : TEXT; }}>
                     {s}
                   </button>
                 ))}

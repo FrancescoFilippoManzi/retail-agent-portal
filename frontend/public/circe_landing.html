@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Circe · Category AI</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --ink: #0B0A14;
+  --ink-soft: #14121F;
+  --ink-deeper: #070611;
+  --ivory: #F2EADF;
+  --ivory-mute: #B8AE9E;
+  --ivory-faint: #6B6458;
+  --gold: #D4A24C;
+  --gold-bright: #F0C674;
+  --gold-deep: #8B6A2E;
+  --teal: #5B9A8B;
+  --crimson: #C14953;
+  --border: rgba(242, 234, 223, 0.08);
+  --border-strong: rgba(242, 234, 223, 0.16);
+  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--ink);
+  color: var(--ivory);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.app {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  min-height: 760px;
+  background:
+    radial-gradient(ellipse 100% 60% at 50% 0%, rgba(212, 162, 76, 0.06) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 50% 100%, rgba(91, 154, 139, 0.03) 0%, transparent 50%),
+    linear-gradient(180deg, #0B0A14 0%, #0E0C17 100%);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Grain overlay */
+.app::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  mix-blend-mode: overlay;
+  z-index: 1;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ═══ TOP STRIP ═══════════════════════════════════════════════════ */
+.topbar {
+  display: flex;
+  align-items: center;
+  padding: 18px 32px;
+  border-bottom: 0.5px solid var(--border);
+  position: relative;
+  z-index: 2;
+  gap: 40px;
+  flex-shrink: 0;
+}
+
+.logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  min-width: 110px;
+}
+
+.logo-wings {
+  display: block;
+}
+
+.logo-word {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--ivory);
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+
+.logo-tag {
+  font-size: 8.5px;
+  letter-spacing: 0.36em;
+  text-transform: uppercase;
+  color: var(--ivory-faint);
+  margin-top: 1px;
+}
+
+.stats {
+  flex: 1;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  gap: 32px;
+  padding-left: 24px;
+  border-left: 0.5px solid var(--border);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: fadeUp 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.stat:nth-child(1) { animation-delay: 0.1s; }
+.stat:nth-child(2) { animation-delay: 0.18s; }
+.stat:nth-child(3) { animation-delay: 0.26s; }
+.stat:nth-child(4) { animation-delay: 0.34s; }
+.stat:nth-child(5) { animation-delay: 0.42s; }
+
+.stat-label {
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--ivory-faint);
+}
+
+.stat-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.stat-value {
+  font-family: var(--font-serif);
+  font-size: 28px;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--ivory);
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.stat-change {
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+.stat-change.positive { color: var(--teal); }
+.stat-change.negative { color: var(--crimson); }
+.stat-change.gold { color: var(--gold); }
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-left: 24px;
+  border-left: 0.5px solid var(--border);
+  flex-shrink: 0;
+}
+
+.context {
+  text-align: right;
+}
+
+.context-line {
+  font-size: 11px;
+  color: var(--ivory-mute);
+  letter-spacing: 0.02em;
+}
+
+.context-sub {
+  font-size: 9px;
+  color: var(--ivory-faint);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--ink-soft);
+  border: 0.5px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--ivory);
+  letter-spacing: 0.05em;
+}
+
+/* ═══ MAIN SPLIT ══════════════════════════════════════════════════ */
+.main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 3fr 1fr;
+  position: relative;
+  z-index: 2;
+  min-height: 0;
+}
+
+.tiles-region {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  padding: 32px 48px;
+  position: relative;
+  place-items: center;
+}
+
+.connectors {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.12;
+}
+
+/* ═══ TILE ═══════════════════════════════════════════════════════ */
+.tile {
+  position: relative;
+  width: 190px;
+  height: 190px;
+  cursor: pointer;
+  animation: tileIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.tile:hover { transform: translateY(-4px); }
+
+.tile.hero {
+  width: 240px;
+  height: 240px;
+}
+
+/* Staggered tile reveal */
+.tile:nth-child(1) { animation-delay: 0.20s; }
+.tile:nth-child(2) { animation-delay: 0.27s; }
+.tile:nth-child(3) { animation-delay: 0.34s; }
+.tile:nth-child(4) { animation-delay: 0.41s; }
+.tile:nth-child(5) { animation-delay: 0.48s; }
+.tile:nth-child(6) { animation-delay: 0.55s; }
+.tile:nth-child(7) { animation-delay: 0.62s; }
+.tile:nth-child(8) { animation-delay: 0.69s; }
+.tile:nth-child(9) { animation-delay: 0.76s; }
+
+/* Hero ambient glow */
+.tile.hero::before {
+  content: "";
+  position: absolute;
+  inset: -50px;
+  border-radius: 52px;
+  background: radial-gradient(ellipse, rgba(212, 162, 76, 0.14) 0%, transparent 65%);
+  pointer-events: none;
+  filter: blur(20px);
+  transition: background 0.4s ease;
+}
+.tile.hero:hover::before {
+  background: radial-gradient(ellipse, rgba(212, 162, 76, 0.22) 0%, transparent 65%);
+}
+
+/* Outer soft glow */
+.tile::after {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  border-radius: 28px;
+  background: radial-gradient(ellipse, rgba(212, 162, 76, 0.06) 0%, transparent 65%);
+  pointer-events: none;
+  filter: blur(12px);
+  transition: background 0.4s ease;
+}
+.tile:hover::after {
+  background: radial-gradient(ellipse, rgba(212, 162, 76, 0.16) 0%, transparent 65%);
+}
+
+/* The tile surface itself */
+.tile-surface {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(242, 234, 223, 0.06) 0%, transparent 40%),
+    linear-gradient(315deg, rgba(212, 162, 76, 0.12) 0%, transparent 45%),
+    linear-gradient(180deg, #1E1A2B 0%, #14121F 55%, #0A0814 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(242, 234, 223, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5),
+    inset 1px 0 0 rgba(242, 234, 223, 0.04),
+    inset -1px 0 0 rgba(212, 162, 76, 0.08),
+    inset 0 -24px 48px rgba(7, 6, 17, 0.5),
+    inset 0 24px 48px rgba(242, 234, 223, 0.025),
+    0 12px 32px rgba(0, 0, 0, 0.55),
+    0 2px 6px rgba(0, 0, 0, 0.4);
+  border: 0.5px solid rgba(212, 162, 76, 0.22);
+  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.tile.hero .tile-surface {
+  border-radius: 22px;
+}
+
+/* Top specular streak */
+.tile-surface::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 8%;
+  right: 8%;
+  height: 38%;
+  border-radius: 18px 18px 60% 60%;
+  background: linear-gradient(180deg, rgba(242, 234, 223, 0.08) 0%, transparent 100%);
+  pointer-events: none;
+  transition: background 0.4s ease;
+}
+.tile:hover .tile-surface::before {
+  background: linear-gradient(180deg, rgba(242, 234, 223, 0.12) 0%, transparent 100%);
+}
+
+/* Concentrated highlight + warm rim */
+.tile-surface::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  background: linear-gradient(135deg, transparent 50%, rgba(212, 162, 76, 0.1) 100%);
+  pointer-events: none;
+  mix-blend-mode: screen;
+  transition: background 0.4s ease;
+}
+.tile:hover .tile-surface::after {
+  background: linear-gradient(135deg, transparent 50%, rgba(212, 162, 76, 0.18) 100%);
+}
+
+.tile.hero .tile-surface::before,
+.tile.hero .tile-surface::after {
+  border-radius: 22px;
+}
+.tile.hero .tile-surface::before {
+  border-radius: 22px 22px 60% 60%;
+}
+
+.tile-inner-border {
+  position: absolute;
+  inset: 1px;
+  border-radius: 17px;
+  border: 0.5px solid rgba(242, 234, 223, 0.04);
+  pointer-events: none;
+  transition: border-color 0.4s ease;
+}
+.tile.hero .tile-inner-border {
+  border-radius: 21px;
+}
+.tile:hover .tile-inner-border {
+  border-color: rgba(242, 234, 223, 0.08);
+}
+
+.tile-icon {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  width: 24px;
+  height: 24px;
+  color: var(--gold);
+  transition: color 0.3s ease;
+}
+.tile.hero .tile-icon {
+  top: 22px;
+  left: 22px;
+  width: 30px;
+  height: 30px;
+  color: var(--gold-bright);
+}
+.tile:hover .tile-icon {
+  color: var(--gold-bright);
+}
+
+.tile-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+  text-align: center;
+}
+
+.tile.hero .tile-content {
+  padding: 0 28px;
+}
+
+.tile-name {
+  font-family: var(--font-serif);
+  font-size: 19px;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--ivory);
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+  margin-bottom: 7px;
+}
+.tile.hero .tile-name {
+  font-size: 24px;
+}
+
+.tile-sub {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ivory-faint);
+}
+
+.tile-star {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+
+/* ═══ CHAT PANEL ══════════════════════════════════════════════════ */
+.chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: linear-gradient(180deg, rgba(20, 18, 31, 0.6) 0%, rgba(11, 10, 20, 0.8) 100%);
+  border-left: 0.5px solid var(--border);
+  animation: fadeIn 0.8s ease-out 0.4s both;
+}
+
+.chat-header {
+  padding: 20px 24px;
+  border-bottom: 0.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.chat-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gold-bright);
+  box-shadow: 0 0 10px var(--gold);
+  animation: pulseSoft 2.5s ease-in-out infinite;
+}
+
+.chat-name {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-style: italic;
+  color: var(--ivory);
+  letter-spacing: 0.02em;
+}
+
+.chat-status {
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--ivory-faint);
+  margin-top: 2px;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 24px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 0;
+}
+
+.chat-messages::-webkit-scrollbar {
+  width: 4px;
+}
+.chat-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-messages::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 2px;
+}
+
+.msg {
+  display: flex;
+  flex-direction: column;
+}
+
+.msg.user { align-items: flex-end; }
+
+.msg-author {
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.msg.user .msg-author { color: var(--ivory-faint); }
+.msg.circe .msg-author { color: var(--gold); }
+
+.msg-body {
+  max-width: 90%;
+  border-radius: 2px;
+  letter-spacing: 0.01em;
+}
+
+.msg.circe .msg-body {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--ivory);
+  line-height: 1.6;
+}
+
+.msg.user .msg-body {
+  padding: 10px 14px;
+  background: rgba(212, 162, 76, 0.08);
+  border: 0.5px solid rgba(212, 162, 76, 0.2);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--ivory);
+  line-height: 1.55;
+}
+
+.chat-input-region {
+  padding: 12px 16px 20px;
+  border-top: 0.5px solid var(--border);
+  flex-shrink: 0;
+}
+
+.chat-input-wrap {
+  position: relative;
+  background: rgba(242, 234, 223, 0.03);
+  border: 0.5px solid var(--border-strong);
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  transition: border-color 0.3s ease, background 0.3s ease;
+}
+.chat-input-wrap:focus-within {
+  border-color: var(--gold);
+  background: rgba(242, 234, 223, 0.05);
+}
+
+.chat-input {
+  flex: 1;
+  padding: 14px 16px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--ivory);
+  font-size: 14px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  letter-spacing: 0.01em;
+}
+
+.chat-input::placeholder {
+  color: var(--ivory-faint);
+  font-style: italic;
+}
+
+.chat-send {
+  background: transparent;
+  border: none;
+  color: var(--ivory-faint);
+  padding: 0 16px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: color 0.2s ease;
+  font-family: inherit;
+}
+.chat-send.active { color: var(--gold-bright); cursor: pointer; }
+
+.chat-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding: 0 4px;
+}
+
+.chat-hint {
+  font-size: 9px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ivory-faint);
+}
+
+/* ═══ ANIMATIONS ══════════════════════════════════════════════════ */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes tileIn {
+  from { opacity: 0; transform: scale(0.94) translateY(0); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes pulseSoft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .tile { width: 160px; height: 160px; }
+  .tile.hero { width: 200px; height: 200px; }
+  .stats { gap: 20px; }
+  .stat-value { font-size: 24px; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ═══ TOP STRIP ═══════════════════════════════════════════════ -->
+  <header class="topbar">
+
+    <!-- Logo: wings above, Circe wordmark, Category AI tagline -->
+    <div class="logo">
+      <svg class="logo-wings" width="52" height="22" viewBox="0 0 56 22" fill="none">
+        <circle cx="28" cy="15" r="1.8" fill="#F0C674" />
+        <!-- Left wing -->
+        <path d="M28 15 Q 20 10, 10 12 Q 16 14, 28 15" fill="none" stroke="#D4A24C" stroke-width="0.7" opacity="0.85"/>
+        <path d="M28 15 Q 18 7, 6 9" fill="none" stroke="#D4A24C" stroke-width="0.5" opacity="0.65"/>
+        <path d="M28 15 Q 16 11, 2 12" fill="none" stroke="#D4A24C" stroke-width="0.4" opacity="0.45"/>
+        <path d="M28 15 Q 22 8, 13 8" fill="none" stroke="#D4A24C" stroke-width="0.4" opacity="0.5"/>
+        <!-- Right wing -->
+        <path d="M28 15 Q 36 10, 46 12 Q 40 14, 28 15" fill="none" stroke="#D4A24C" stroke-width="0.7" opacity="0.85"/>
+        <path d="M28 15 Q 38 7, 50 9" fill="none" stroke="#D4A24C" stroke-width="0.5" opacity="0.65"/>
+        <path d="M28 15 Q 40 11, 54 12" fill="none" stroke="#D4A24C" stroke-width="0.4" opacity="0.45"/>
+        <path d="M28 15 Q 34 8, 43 8" fill="none" stroke="#D4A24C" stroke-width="0.4" opacity="0.5"/>
+      </svg>
+      <div class="logo-word">Circe</div>
+      <div class="logo-tag">Category AI</div>
+    </div>
+
+    <!-- Stats strip (placeholders — replace with real values) -->
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-label">Revenue MTD</div>
+        <div class="stat-row">
+          <div class="stat-value">$4.2M</div>
+          <div class="stat-change positive">+3.2%</div>
+        </div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Units</div>
+        <div class="stat-row">
+          <div class="stat-value">687K</div>
+          <div class="stat-change positive">+1.8%</div>
+        </div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Active SKUs</div>
+        <div class="stat-row">
+          <div class="stat-value">2,967</div>
+        </div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">OOS Risk</div>
+        <div class="stat-row">
+          <div class="stat-value">3</div>
+          <div class="stat-change negative">48 hrs</div>
+        </div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Signals</div>
+        <div class="stat-row">
+          <div class="stat-value">12</div>
+          <div class="stat-change gold">2 urgent</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Context + avatar -->
+    <div class="topbar-right">
+      <div class="context">
+        <div class="context-line">Kroger · Columbus OH</div>
+        <div class="context-sub">December 2025</div>
+      </div>
+      <div class="avatar">FR</div>
+    </div>
+  </header>
+
+  <!-- ═══ MAIN SPLIT ══════════════════════════════════════════════ -->
+  <main class="main">
+
+    <!-- LEFT: Tile grid (9 agents, 3x3) -->
+    <section class="tiles-region">
+
+      <!-- Connector lines from satellites to center -->
+      <svg class="connectors">
+        <g stroke="#D4A24C" stroke-width="0.5" fill="none">
+          <line x1="16.67%" y1="16.67%" x2="50%" y2="50%" />
+          <line x1="50%"    y1="16.67%" x2="50%" y2="50%" />
+          <line x1="83.33%" y1="16.67%" x2="50%" y2="50%" />
+          <line x1="16.67%" y1="50%"    x2="50%" y2="50%" />
+          <line x1="83.33%" y1="50%"    x2="50%" y2="50%" />
+          <line x1="16.67%" y1="83.33%" x2="50%" y2="50%" />
+          <line x1="50%"    y1="83.33%" x2="50%" y2="50%" />
+          <line x1="83.33%" y1="83.33%" x2="50%" y2="50%" />
+        </g>
+      </svg>
+
+      <!-- Row 1 -->
+      <div class="tile" data-agent="pricing" style="grid-column: 1; grid-row: 1;">
+        <div class="tile-surface">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 5 L11 5 L20 14 L14 20 L5 11 Z" />
+              <circle cx="8" cy="8" r="1" />
+              <line x1="10" y1="15" x2="15" y2="10" stroke-width="1" />
+            </svg>
+          </div>
+          <div class="tile-inner-border"></div>
+          <div class="tile-content">
+            <div class="tile-name">Pricing &amp; Promo</div>
+            <div class="tile-sub">Price &amp; campaign</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tile" data-agent="assortment" style="grid-column: 2; grid-row: 1;">
+        <div class="tile-surface">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="5" y="5" width="6" height="6" />
+              <rect x="13" y="5" width="6" height="6" />
+              <rect x="5" y="13" width="6" height="6" />
+              <rect x="13" y="13" width="6" height="6" />
+            </svg>
+          </div>
+          <div class="tile-inner-border"></div>
+          <div class="tile-content">
+            <div class="tile-name">Assortment</div>
+            <div class="tile-sub">Mix &amp; space</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tile" data-agent="private" style="grid-column: 3; grid-row: 1;">
+        <div class="tile-surface">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 11 L12 4 L20 11 L20 20 L4 20 Z" />
+              <line x1="10" y1="20" x2="10" y2="14" />
+              <line x1="14" y1="20" x2="14" y2="14" />
+              <line x1="10" y1="14" x2="14" y2="14" />
+            </svg>
+          </div>
+          <div class="tile-inner-border"></div>
+          <div class="tile-content">
+            <div class="tile-name">Private Label</div>
+            <div class="tile-sub">Own brand strategy</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2 -->
+      <div class="tile" data-agent="cost" style="grid-column: 1; grid-row: 2;">
+        <div class="tile-surface">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12 L8 7 L12 11 L16 7 L21 12" />
+              <path d="M8 7 L8 14 L12 17 L16 14 L16 7" />
+              <line x1="12" y1="11" x2="12" y2="17" />
+            </svg>
+          </div>
+          <div class="tile-inner-border"></div>
+          <div class="tile-content">
+            <div class="tile-name">Cost &amp; Negotiation</div>
+            <div class="tile-sub">Supplier terms</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HERO: Shadow Category Manager → Category Intelligence -->
+      <div class="tile hero" data-agent="shadow" style="grid-column: 2; grid-row: 2;">
+        <div class="tile-surface">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="7" />
+              <circle cx="12" cy="12" r="3.5" />
+              <line x1="12" y1="5" x2="12" y2="8.5" />
+              <line x1="12" y1="15.5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="8.5" y2="12" />
+              <line x1="15.5" y1="12" x2="19" y2="12" />
+            </svg>
+          </div>
+          <div class="tile-inner-border"></div>
+          <div class="tile-star">★</div>
+          <div class="tile-content">
+            <div class="tile-name">Shadow Category Manager</div>
+            <div class="tile-sub">The orchestrator</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tile" data-agent="competitor" style="grid-column: 3; grid-row: 2;">
+        <div class="tile-surface">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round">
+              <circle cx="12" cy="12" r="7" />
+              <circle cx="12" cy="12" r="3.5" />
+              <line x1="12" y1="2" x2="12" y2="6" />
+              <line x1="12" y1="18" x2="12" y2="22" />
+              <line x1="2" y1="12" x2="6" y2="12" />
+              <line x1="18" y1="12" x2="22" y2="12" />
+            </svg>
+          </div>
+          <div class="tile-inner-border"></div>
+          <div class="tile-content">
+            <div class="tile-name">Competitor Intelligence</div>
+            <div class="tile-sub">Market positioning</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 3 -->
+      <div class="tile" data-agent="store" style="grid-column: 1; grid-row: 3;">
+        <div class="tile-surface">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="4" y1="7" x2="20" y2="7" />
+              <line x1="4" y1="13" x2="20" y2="13" />
+              <line x1="4" y1="19" x2="20" y2="19" />
+              <rect x="6" y="3" width="3" height="4" />
+              <rect x="11" y="2" width="3" height="5" />
+              <rect x="16" y="4" width="3" height="3" />
+              <rect x="7" y="9" width="3" height="4" />
+              <rect x="13" y="10" width="4" height="3" />
+            </svg>
+          </div>
+          <div class="tile-inner-border"></div>
+          <div class="tile-content">
+            <div class="tile-name">Store Execution</div>
+            <div class="tile-sub">Shelf &amp; compliance</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tile" data-agent="customer" style="grid-column: 2; grid-row: 3;">
+        <div class="tile-surface">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="8" r="3" />
+              <path d="M6 20 Q 6 14, 12 14 Q 18 14, 18 20" />
+              <path d="M3 11 L5 11 L6 9 L7 13 L8 11 L10 11" stroke-width="1" opacity="0.7" />
+            </svg>
+          </div>
+          <div class="tile-inner-border"></div>
+          <div class="tile-content">
+            <div class="tile-name">Customer Monitor</div>
+            <div class="tile-sub">Behavior &amp; signals</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tile" data-agent="shopper" style="grid-column: 3; grid-row: 3;">
+        <div class="tile-surface">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="10" cy="10" r="5.5" />
+              <line x1="14" y1="14" x2="19" y2="19" />
+              <circle cx="10" cy="8.5" r="1.3" />
+              <path d="M7 13 Q 7 10.5, 10 10.5 Q 13 10.5, 13 13" />
+            </svg>
+          </div>
+          <div class="tile-inner-border"></div>
+          <div class="tile-content">
+            <div class="tile-name">Shopper Insights</div>
+            <div class="tile-sub">Panel &amp; loyalty</div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT: Chat panel -->
+    <aside class="chat">
+      <div class="chat-header">
+        <div class="chat-indicator"></div>
+        <div>
+          <div class="chat-name">Circe</div>
+          <div class="chat-status">Here with you</div>
+        </div>
+      </div>
+
+      <div class="chat-messages" id="chat-messages">
+        <div class="msg circe">
+          <div class="msg-author">Circe</div>
+          <div class="msg-body">Good morning, Francesco. Ask me anything about your category — revenue, OOS, pricing, promotions, private label.</div>
+        </div>
+      </div>
+
+      <div class="chat-input-region">
+        <div class="chat-input-wrap">
+          <input type="text" class="chat-input" id="chat-input" placeholder="Ask Circe…" autocomplete="off" />
+          <button class="chat-send" id="chat-send" aria-label="Send">↑</button>
+        </div>
+        <div class="chat-footer">
+          <div class="chat-hint">⏎ to send</div>
+          <div class="chat-hint">Kroger · Dec 2025</div>
+        </div>
+      </div>
+    </aside>
+
+  </main>
+</div>
+
+<script>
+// ═══ UNDER CONSTRUCTION TOAST ═════════════════════════════════════
+function showUnderConstruction(tile) {
+  // Remove any existing toast
+  const existing = document.getElementById('uc-toast');
+  if (existing) existing.remove();
+
+  const rect = tile.getBoundingClientRect();
+  const toast = document.createElement('div');
+  toast.id = 'uc-toast';
+  toast.textContent = 'Under construction';
+  Object.assign(toast.style, {
+    position: 'fixed',
+    left: rect.left + rect.width / 2 + 'px',
+    top: rect.top - 38 + 'px',
+    transform: 'translateX(-50%)',
+    background: 'rgba(11,10,20,0.92)',
+    color: '#B8AE9E',
+    border: '0.5px solid rgba(242,234,223,0.18)',
+    borderRadius: '6px',
+    padding: '6px 14px',
+    fontSize: '11px',
+    letterSpacing: '0.1em',
+    fontFamily: 'Inter, system-ui, sans-serif',
+    whiteSpace: 'nowrap',
+    pointerEvents: 'none',
+    zIndex: '9999',
+    opacity: '0',
+    transition: 'opacity 0.15s ease',
+  });
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => { toast.style.opacity = '1'; });
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 200);
+  }, 1800);
+}
+
+// ═══ NAVIGATION ═══════════════════════════════════════════════════
+document.querySelectorAll('.tile').forEach(tile => {
+  tile.addEventListener('click', () => {
+    const agent = tile.dataset.agent;
+
+    // Bounce feedback for all tiles
+    tile.style.transition = 'transform 0.15s ease';
+    tile.style.transform = 'translateY(-4px) scale(0.98)';
+    setTimeout(() => { tile.style.transform = ''; }, 150);
+
+    if (agent === 'shadow') {
+      // Shadow Category Manager → enter the main Circe app
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: 'circe-enter' }, '*');
+      }
+    } else {
+      // All other tiles → Under construction
+      showUnderConstruction(tile);
+    }
+  });
+});
+
+// ═══ CHAT — same backend as Category AI Companion ═════════════════
+const input      = document.getElementById('chat-input');
+const sendBtn    = document.getElementById('chat-send');
+const messagesEl = document.getElementById('chat-messages');
+
+let dailySnap  = null;   // loaded once on page load
+let chatHistory = [];    // [{role, content}, ...]
+let isLoading  = false;
+
+// ── Helpers ─────────────────────��──────────────────────────────────
+function fmt(n, type) {
+  if (n == null) return '–';
+  if (type === 'money') {
+    if (n >= 1e6) return '$' + (n/1e6).toFixed(2) + 'M';
+    if (n >= 1e3) return '$' + (n/1e3).toFixed(0) + 'K';
+    return '$' + Number(n).toFixed(2);
+  }
+  if (type === 'pct') return Number(n).toFixed(1) + '%';
+  return Number(n).toLocaleString();
+}
+
+// Render markdown: **bold** → gold span, → lines → callout block
+function renderMarkdown(text) {
+  return text.split('\n').map(line => {
+    if (!line.trim()) return '<div style="height:0.3rem"></div>';
+    if (line.startsWith('→')) {
+      const safe = line.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      return `<div style="margin-top:0.4rem;padding:0.3rem 0.6rem;border-left:2px solid var(--gold);color:var(--gold-bright);font-size:0.88em">${safe}</div>`;
+    }
+    const html = line
+      .replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--gold-bright)">$1</strong>');
+    return '<div>' + html + '</div>';
+  }).join('');
+}
+
+// ── Append a message bubble ────────────────────────────────────────
+function appendMessage(role, html, returnEl) {
+  const msg = document.createElement('div');
+  msg.className = 'msg ' + (role === 'user' ? 'user' : 'circe');
+  msg.innerHTML = `
+    <div class="msg-author">${role === 'user' ? 'You' : 'Circe'}</div>
+    <div class="msg-body">${html}</div>
+  `;
+  // Clear placeholder messages on first real send
+  if (chatHistory.length === 1 && role === 'user') {
+    messagesEl.innerHTML = '';
+  }
+  messagesEl.appendChild(msg);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  if (returnEl) return msg.querySelector('.msg-body');
+}
+
+// ── Typing indicator ───────────────────────────────────────────────
+function showTyping() {
+  const el = document.createElement('div');
+  el.id = 'typing-indicator';
+  el.className = 'msg circe';
+  el.innerHTML = `
+    <div class="msg-author">Circe</div>
+    <div class="msg-body" style="display:flex;gap:5px;align-items:center;padding:4px 0">
+      <span style="width:5px;height:5px;border-radius:50%;background:var(--gold);opacity:0.4;animation:pulseSoft 1.2s 0s infinite"></span>
+      <span style="width:5px;height:5px;border-radius:50%;background:var(--gold);opacity:0.4;animation:pulseSoft 1.2s 0.2s infinite"></span>
+      <span style="width:5px;height:5px;border-radius:50%;background:var(--gold);opacity:0.4;animation:pulseSoft 1.2s 0.4s infinite"></span>
+    </div>
+  `;
+  messagesEl.appendChild(el);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return el;
+}
+function removeTyping() {
+  document.getElementById('typing-indicator')?.remove();
+}
+
+// ── Build system prompt (mirrors CategoryIntelligence exactly) ─────
+function buildSystem(dataSummary) {
+  const d = dailySnap || {};
+  const snap = `Current snapshot (${d.date || 'Dec 31, 2025'}):
+- Revenue: ${fmt(d.total_revenue,'money')} | Transactions: ${fmt(d.total_transactions,'num')} | Avg basket: $${d.avg_basket || '61.65'}
+- PL penetration: ${fmt(d.pl_penetration_pct,'pct')} | Gross margin: ${fmt(d.gross_margin_pct,'pct')}
+- OOS rate: ${fmt(d.oos_rate_pct,'pct')} | Top category: ${d.top_category ? d.top_category.category + ' (' + fmt(d.top_category.revenue,'money') + ')' : 'Meat & Seafood'}`;
+
+  const dataBlock = dataSummary ? `
+━━━ ACTUAL DATA RETRIEVED FROM DATABASE ━━━
+${dataSummary}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RESPONSE INSTRUCTIONS:
+- Answer using the EXACT numbers from the data above — do not estimate.
+- Lead with the headline figure.
+- Give 1-2 sentences of strategic interpretation.
+- End with a "→ Next:" action suggestion.
+- Never say you lack data — it is provided above.` : `
+- If asked for specific data, answer based on the snapshot above.
+- NEVER say data is unavailable — all December 2025 data exists.`;
+
+  return `You are Circe, an expert Category Management AI for Kroger. You have live data from the Category Intelligence API.
+
+${snap}
+
+Be sharp, specific, and data-grounded. Use **bold** for key numbers. Keep responses focused — 3-5 sentences plus a "→ Next:" line.
+
+IMPORTANT — data availability:
+- Exactly 11 categories: Beverages, Dairy & Eggs, Deli & Prepared, Floral, Frozen, HBC, Household, Meat & Seafood, Packaged & Dry, Pet, Produce.
+- All data covers December 2025 only. "Yesterday" = Dec 31 2025.
+- Paper products live under Household > Paper Products subcategory.
+${dataBlock}`;
+}
+
+// ── Step A: RAG query ──────────────────────────────────────────────
+async function runQuery(question) {
+  try {
+    const r = await fetch('/api/intelligence/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, tenant_id: 'kroger' }),
+    });
+    if (!r.ok) return '';
+    const data = await r.json();
+    if (!data?.answer_data?.length) return '';
+    const rows = data.answer_data;
+    const cols = Object.keys(rows[0]);
+    let summary = `Query returned ${rows.length} row${rows.length !== 1 ? 's' : ''}.\n`;
+    rows.slice(0, 20).forEach((row, i) => {
+      summary += `Row ${i+1}: ${cols.map(c => `${c}=${row[c]}`).join(', ')}\n`;
+    });
+    if (data.sql) summary += `\nSQL used: ${data.sql}`;
+    return summary;
+  } catch { return ''; }
+}
+
+// ── Step B: Stream Claude ──────────────────────────────────────────
+async function streamClaude(messages, system, bodyEl) {
+  const resp = await fetch('/api/intelligence/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages, system }),
+  });
+  if (!resp.ok) throw new Error('Chat API error ' + resp.status);
+
+  const reader = resp.body.getReader();
+  const dec = new TextDecoder();
+  let full = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    for (const line of dec.decode(value).split('\n')) {
+      if (!line.startsWith('data: ')) continue;
+      try {
+        const ev = JSON.parse(line.slice(6));
+        if (ev.type === 'content_block_delta' && ev.delta?.text) {
+          full += ev.delta.text;
+          bodyEl.innerHTML = renderMarkdown(full);
+          messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+      } catch {}
+    }
+  }
+  return full;
+}
+
+// ── Main send handler ──────────────────────────────────────────────
+function updateSendState() {
+  sendBtn.classList.toggle('active', !!input.value.trim() && !isLoading);
+}
+
+async function send() {
+  const q = input.value.trim();
+  if (!q || isLoading) return;
+  isLoading = true;
+  input.value = '';
+  updateSendState();
+  input.disabled = true;
+
+  // Append user bubble (clears placeholder on first message)
+  appendMessage('user', q.replace(/</g,'&lt;').replace(/>/g,'&gt;'));
+  chatHistory.push({ role: 'user', content: q });
+
+  const typing = showTyping();
+
+  try {
+    // Step A — RAG
+    const dataSummary = await runQuery(q);
+    // Step B — Stream
+    removeTyping();
+    const bodyEl = appendMessage('circe', '', true);
+    const answer = await streamClaude(
+      chatHistory.map(m => ({ role: m.role, content: m.content })),
+      buildSystem(dataSummary),
+      bodyEl
+    );
+    chatHistory.push({ role: 'assistant', content: answer });
+  } catch (e) {
+    removeTyping();
+    appendMessage('circe', '⚠ ' + (e.message || 'Something went wrong. Try again.'));
+  } finally {
+    isLoading = false;
+    input.disabled = false;
+    updateSendState();
+    input.focus();
+  }
+}
+
+// ── Load daily snapshot on page load ──────────────────────────────
+fetch('/api/intelligence/daily')
+  .then(r => r.ok ? r.json() : null)
+  .then(d => { dailySnap = d; })
+  .catch(() => {});
+
+input.addEventListener('input', updateSendState);
+input.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+sendBtn.addEventListener('click', send);
+</script>
+
+</body>
+</html>

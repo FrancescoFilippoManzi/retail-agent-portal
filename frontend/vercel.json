@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/ci/:path*",
+      "destination": "https://87-99-154-201.nip.io/api/:path*"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://87-99-154-201.nip.io/sim/api/:path*"
     },
